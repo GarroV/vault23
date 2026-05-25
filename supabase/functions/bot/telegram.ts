@@ -5,19 +5,14 @@ export interface InlineKeyboardButton {
 
 async function post(token: string, method: string, body: unknown): Promise<void> {
   const url = `https://api.telegram.org/bot${token}/${method}`;
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      console.error(`[telegram] ${method} failed`, { status: response.status, error: err });
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[telegram] network error in ${method}`, { error: message });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Telegram ${method} ${response.status}: ${err}`);
   }
 }
 

@@ -69,7 +69,8 @@ Deno.serve(async (req: Request) => {
     const callbackQueryId = update.callback_query?.id;
 
     // Language command
-    if (text === '/language' || text?.startsWith('/language@')) {
+    const command = text?.split(/[\s@]/)[0];
+    if (command === '/language') {
       await handleLanguageCommand(telegramToken, chatId, identity);
       return new Response('OK', { status: 200 });
     }
