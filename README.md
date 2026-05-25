@@ -34,11 +34,12 @@ AI-помощник для ведения задач в Telegram. Мультит
 ## Структура репозитория (план)
 
 ```
-/                  — документация (этот корень)
-/functions         — Supabase Edge Functions (код)
-/migrations        — версионированные миграции БД
-/docs              — дополнительная документация
-/decisions         — журнал архитектурных решений
+/                        — документация (этот корень)
+/functions               — Supabase Edge Functions (код)
+/supabase/migrations     — версионированные миграции БД (supabase CLI)
+/supabase/config.toml    — конфиг Supabase CLI
+/docs                    — дополнительная документация
+/decisions               — журнал архитектурных решений
 ```
 
 ## Порядок разработки (кратко)
