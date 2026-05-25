@@ -2,6 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendMessage } from './telegram.ts';
 import { isProcessed, markProcessed } from './idempotency.ts';
 import { identifyUser } from './core/identify.ts';
+import { createTranslator } from './core/i18n.ts';
+import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 Deno.serve(async (req: Request) => {
@@ -20,7 +22,7 @@ Deno.serve(async (req: Request) => {
 
   const updateId = update.update_id;
   if (typeof updateId !== 'number') {
-    console.error('[index] update_id is missing or invalid');
+    console.error('[index] missing update_id');
     return new Response('Bad Request', { status: 400 });
   }
 
@@ -44,21 +46,46 @@ Deno.serve(async (req: Request) => {
 
     const from = update.message?.from ?? update.callback_query?.from;
     if (!from) {
-      console.log('[index] no user context in update, skipping', { updateId });
+      console.log('[index] no user context, skipping', { updateId });
       return new Response('OK', { status: 200 });
     }
 
     const identity = await identifyUser(serviceDb, from);
+    const t = createTranslator(identity.language);
+    const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id;
+
+    if (!chatId) {
+      console.log('[index] no chat_id, skipping', { updateId });
+      return new Response('OK', { status: 200 });
+    }
+
+    // Welcome new users
+    if (identity.isNew) {
+      await sendMessage(telegramToken, chatId, t('welcome_new'));
+    }
+
+    const text = update.message?.text?.trim();
+    const callbackData = update.callback_query?.data;
+    const callbackQueryId = update.callback_query?.id;
+
+    // Language command
+    if (text === '/language' || text?.startsWith('/language@')) {
+      await handleLanguageCommand(telegramToken, chatId, identity);
+      return new Response('OK', { status: 200 });
+    }
+
+    // Language callback
+    if (callbackData?.startsWith('lang_') && callbackQueryId) {
+      await handleLanguageCallback(serviceDb, telegramToken, chatId, callbackQueryId, identity, callbackData);
+      return new Response('OK', { status: 200 });
+    }
 
     // Temporary echo — replaced by module router in step 3.3
-    const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id;
-    const text = update.message?.text;
-
-    if (chatId && text) {
+    if (text) {
       console.log('[index] echo', { updateId, chatId, userId: identity.userId });
       await sendMessage(telegramToken, chatId, text);
     } else {
-      console.log('[index] no text content', { updateId, userId: identity.userId });
+      console.log('[index] no actionable content', { updateId, userId: identity.userId });
     }
 
   } catch (err) {
