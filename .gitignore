@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+.deno/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+supabase/.env
+
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
