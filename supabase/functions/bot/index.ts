@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendMessage } from './telegram.ts';
+import { sendMessage, answerCallbackQuery } from './telegram.ts';
 import { isProcessed, markProcessed } from './idempotency.ts';
 import { identifyUser } from './core/identify.ts';
 import { createTranslator } from './core/i18n.ts';
@@ -104,6 +104,11 @@ Deno.serve(async (req: Request) => {
     if (module) {
       console.log('[index] routing to module', { updateId, module: module.name, userId: identity.userId });
       const result = await module.handle(ctx);
+
+      // Auto-answer callback queries so Telegram clears the spinner
+      if (event.type === 'callback_query' && update.callback_query?.id) {
+        await answerCallbackQuery(telegramToken, update.callback_query.id).catch(() => {});
+      }
 
       if (result.clearSession) {
         await clearSession(serviceDb, identity.userId);

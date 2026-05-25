@@ -50,7 +50,18 @@
 - Проблема при первом деплое: 401 Unauthorized без `--no-verify-jwt`.
 - Вебхук зарегистрирован: `setWebhook?url=https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1/bot`.
 - Проверено: бот отвечает эхом на сообщения.
-- Следующий шаг (3.2): добавить верификацию через secret token в URL вебхука.
+- Следующий шаг (3.2): добавить верификацию через secret token в URL вебхука (отложено до стабилизации ядра).
+
+**3.3–3.5 · Модульное ядро**
+- `core/types.ts` — полная система типов: BotEvent, BotContext, BotModule, SessionState, ModuleResult, GateResult, InlineButton.
+- `core/router.ts` — `normalizeEvent()`: TelegramUpdate → BotEvent (command/text/voice/file/callback_query).
+- `core/registry.ts` — `ModuleRegistry`: регистрация модулей, routing по команде и `canHandle`.
+- `core/gate.ts` — заглушка (всегда allowed), Этап 9 заменит реализацию.
+- `core/session.ts` — `loadSession`, `saveSession`, `clearSession` через bot_sessions.
+- `core/context.ts` — `loadWorkspace`, `buildContext`: собирает полный BotContext из identity + DB данных.
+- `index.ts` обновлён: полный pipeline — identify → normalize → system cmds → module router → fallback.
+- Автоответ на callback_query (очищает спиннер Telegram) в index.ts после module.handle().
+- 3.4 и 3.5 реализованы как часть 3.3.
 
 **3.2 · Идентификация пользователя**
 - `core/types.ts` — общие типы: `TelegramUpdate`, `TelegramUser`, `UserIdentity`, `Language`.
