@@ -1,24 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendMessage } from './telegram.ts';
 import { isProcessed, markProcessed } from './idempotency.ts';
-
-interface TelegramUpdate {
-  update_id: number;
-  message?: {
-    message_id: number;
-    chat: { id: number };
-    from?: { id: number; language_code?: string };
-    text?: string;
-    voice?: { file_id: string; duration: number };
-    document?: { file_id: string; file_name?: string; mime_type?: string };
-  };
-  callback_query?: {
-    id: string;
-    from: { id: number; language_code?: string };
-    message?: { chat: { id: number } };
-    data?: string;
-  };
-}
+import { identifyUser } from './core/identify.ts';
+import type { TelegramUpdate } from './core/types.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -42,33 +26,41 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
 
-    if (!supabaseUrl || !supabaseServiceKey || !telegramToken) {
+    if (!supabaseUrl || !serviceKey || !telegramToken) {
       console.error('[index] missing required environment variables');
       return new Response('OK', { status: 200 });
     }
 
-    const db = createClient(supabaseUrl, supabaseServiceKey);
+    const serviceDb = createClient(supabaseUrl, serviceKey);
 
-    const alreadyProcessed = await isProcessed(db, updateId);
-    if (alreadyProcessed) {
-      console.log('[index] update already processed, skipping', { updateId });
+    if (await isProcessed(serviceDb, updateId)) {
+      console.log('[index] duplicate update, skipping', { updateId });
+      return new Response('OK', { status: 200 });
+    }
+    await markProcessed(serviceDb, updateId);
+
+    const from = update.message?.from ?? update.callback_query?.from;
+    if (!from) {
+      console.log('[index] no user context in update, skipping', { updateId });
       return new Response('OK', { status: 200 });
     }
 
-    await markProcessed(db, updateId);
+    const identity = await identifyUser(serviceDb, from);
 
-    const chatId = update.message?.chat?.id;
+    // Temporary echo — replaced by module router in step 3.3
+    const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id;
     const text = update.message?.text;
 
     if (chatId && text) {
-      console.log('[index] echo message', { updateId, chatId });
+      console.log('[index] echo', { updateId, chatId, userId: identity.userId });
       await sendMessage(telegramToken, chatId, text);
     } else {
-      console.log('[index] no actionable content in update', { updateId });
+      console.log('[index] no text content', { updateId, userId: identity.userId });
     }
+
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[index] unexpected runtime error', { updateId, error: message });
