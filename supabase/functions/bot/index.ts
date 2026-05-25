@@ -8,11 +8,11 @@ import { ModuleRegistry } from './core/registry.ts';
 import { loadSession, saveSession, clearSession } from './core/session.ts';
 import { loadWorkspace, buildContext } from './core/context.ts';
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
+import { TasksModule } from './modules/tasks/index.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 const registry = new ModuleRegistry();
-// Modules are registered here as they are implemented:
-// registry.register(new TasksModule());
+registry.register(new TasksModule());
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {

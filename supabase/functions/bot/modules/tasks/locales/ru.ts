@@ -1,0 +1,13 @@
+export const ru: Record<string, string> = {
+  ask_task_title: 'Введи название задачи:',
+  task_created: 'Задача создана: {title}',
+  tasks_empty: 'Открытых задач нет.',
+  task_choose_topic: 'Выбери тему:',
+  task_done_confirm: 'Задача закрыта ✅',
+  task_deferred_confirm: 'Задача отложена ⏸',
+  task_not_found: 'Задача не найдена.',
+  error_empty_title: 'Название не может быть пустым.',
+  error_unexpected: 'Что-то пошло не так. Попробуй ещё раз.',
+  task_btn_done: '✅ Готово',
+  task_btn_defer: '⏸ Отложить',
+};

@@ -41,6 +41,35 @@
 - Верифицировано через Management API: `rowsecurity = true` на всех таблицах, 36 политик (2 на таблицу × 18 таблиц).
 - NULLIF-фикс проверен: функция не падает при незаданном workspace.
 
+---
+
+## 2026-05-26
+
+### Этап 4 — Модуль Tasks (шаги 4.1–4.4)
+
+**Структура модуля:**
+```
+supabase/functions/bot/modules/tasks/
+  index.ts        — TasksModule (BotModule), регистрирует переводы через registerLocale()
+  handlers.ts     — handleTaskCommand, handleTitleInput, handleTopicSelection,
+                    handleTaskListCommand, handleStatusChange
+  queries.ts      — getVisibleTopics, createTask, getOpenTasks, getTaskById, updateTaskStatus
+  locales/ru.ts
+  locales/en.ts
+```
+
+**Ключевые решения:**
+- `registerLocale(ru, en)` — добавлен в `core/i18n.ts`, модули расширяют глобальные переводы без правки ядра. Вызывается как сайд-эффект импорта `modules/tasks/index.ts`.
+- Кнопки `/tasks` используют `ctx.t('task_btn_done')` / `ctx.t('task_btn_defer')` — не хардкод.
+- `updateTaskStatus` не пишет `updated_at` вручную — полагается на триггер `set_updated_at`.
+- Если у воркспейса ровно одна тема (дефолтная) — шаг выбора темы пропускается.
+- `task_topic:<id>`, `task_done:<id>`, `task_defer:<id>` — callback_data для Telegram.
+- `answerCallbackQuery` не вызывается в модуле — ядро делает это автоматически.
+
+**Деплой:** `supabase functions deploy bot --project-ref orrlwzsvrliipcigmzfi --no-verify-jwt` — успешно.
+
+---
+
 ### Этап 3 — Ядро
 
 **3.1 · Telegram Webhook + Echo**

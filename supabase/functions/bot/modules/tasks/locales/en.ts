@@ -1,0 +1,13 @@
+export const en: Record<string, string> = {
+  ask_task_title: 'Enter the task title:',
+  task_created: 'Task created: {title}',
+  tasks_empty: 'No open tasks.',
+  task_choose_topic: 'Choose a topic:',
+  task_done_confirm: 'Task closed ✅',
+  task_deferred_confirm: 'Task deferred ⏸',
+  task_not_found: 'Task not found.',
+  error_empty_title: 'Title cannot be empty.',
+  error_unexpected: 'Something went wrong. Please try again.',
+  task_btn_done: '✅ Done',
+  task_btn_defer: '⏸ Defer',
+};
