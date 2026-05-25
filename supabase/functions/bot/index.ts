@@ -3,8 +3,16 @@ import { sendMessage } from './telegram.ts';
 import { isProcessed, markProcessed } from './idempotency.ts';
 import { identifyUser } from './core/identify.ts';
 import { createTranslator } from './core/i18n.ts';
+import { normalizeEvent } from './core/router.ts';
+import { ModuleRegistry } from './core/registry.ts';
+import { loadSession, saveSession, clearSession } from './core/session.ts';
+import { loadWorkspace, buildContext } from './core/context.ts';
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
 import type { TelegramUpdate } from './core/types.ts';
+
+const registry = new ModuleRegistry();
+// Modules are registered here as they are implemented:
+// registry.register(new TasksModule());
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -59,34 +67,52 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    // Welcome new users
-    if (identity.isNew) {
-      await sendMessage(telegramToken, chatId, t('welcome_new'));
+    const event = normalizeEvent(update);
+    if (!event) {
+      console.log('[index] unsupported update type, skipping', { updateId });
+      return new Response('OK', { status: 200 });
     }
 
-    const text = update.message?.text?.trim();
-    const callbackData = update.callback_query?.data;
-    const callbackQueryId = update.callback_query?.id;
+    // New user or /start — welcome and stop
+    if (identity.isNew || event.command === '/start') {
+      await sendMessage(telegramToken, chatId, t('welcome_new'));
+      return new Response('OK', { status: 200 });
+    }
 
-    // Language command
-    const command = text?.split(/[\s@]/)[0];
-    if (command === '/language') {
+    // System: language
+    if (event.command === '/language') {
       await handleLanguageCommand(telegramToken, chatId, identity);
       return new Response('OK', { status: 200 });
     }
 
-    // Language callback
-    if (callbackData?.startsWith('lang_') && callbackQueryId) {
-      await handleLanguageCallback(serviceDb, telegramToken, chatId, callbackQueryId, identity, callbackData);
+    if (event.type === 'callback_query' && event.callbackData?.startsWith('lang_')) {
+      const callbackQueryId = update.callback_query!.id;
+      await handleLanguageCallback(serviceDb, telegramToken, chatId, callbackQueryId, identity, event.callbackData);
       return new Response('OK', { status: 200 });
     }
 
-    // Temporary echo — replaced by module router in step 3.3
-    if (text) {
-      console.log('[index] echo', { updateId, chatId, userId: identity.userId });
-      await sendMessage(telegramToken, chatId, text);
+    // Load context and route to module
+    const [session, workspace] = await Promise.all([
+      loadSession(serviceDb, identity.userId),
+      loadWorkspace(serviceDb, identity.workspaceId),
+    ]);
+
+    const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb });
+
+    const module = registry.route(event, session);
+
+    if (module) {
+      console.log('[index] routing to module', { updateId, module: module.name, userId: identity.userId });
+      const result = await module.handle(ctx);
+
+      if (result.clearSession) {
+        await clearSession(serviceDb, identity.userId);
+      } else if (result.session) {
+        await saveSession(serviceDb, identity.userId, result.session.state, result.session.data);
+      }
     } else {
-      console.log('[index] no actionable content', { updateId, userId: identity.userId });
+      console.log('[index] no module matched', { updateId, userId: identity.userId });
+      await ctx.reply(t('cmd_unknown'));
     }
 
   } catch (err) {

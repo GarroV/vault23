@@ -1,3 +1,6 @@
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+export type { SupabaseClient };
+
 export type Language = 'ru' | 'en';
 
 export interface TelegramUser {
@@ -32,4 +35,71 @@ export interface UserIdentity {
   language: Language;
   telegramId: string;
   isNew: boolean;
+}
+
+export interface BotEvent {
+  updateId: number;
+  type: 'command' | 'text' | 'voice' | 'file' | 'callback_query';
+  text?: string;
+  source: 'keyboard' | 'voice' | 'button';
+  command?: string;
+  callbackData?: string;
+  fileId?: string;
+  mimeType?: string;
+  rawUpdate: unknown;
+}
+
+export interface SessionState {
+  id: string;
+  state: string;
+  data: Record<string, unknown>;
+}
+
+export interface ReplyOptions {
+  parseMode?: 'Markdown' | 'HTML';
+  disablePreview?: boolean;
+}
+
+export interface InlineButton {
+  text: string;
+  callbackData: string;
+}
+
+export interface GateResult {
+  allowed: boolean;
+  reason?: 'workspace_suspended' | 'workspace_cancelled' | 'plan_limit' | 'feature_not_in_plan';
+}
+
+export interface ModuleResult {
+  ok: boolean;
+  session?: { state: string; data: Record<string, unknown> };
+  clearSession?: boolean;
+}
+
+export interface BotContext {
+  user: {
+    id: string;
+    workspaceId: string;
+    language: Language;
+    telegramId: string;
+  };
+  workspace: {
+    id: string;
+    status: string;
+    plan: string;
+  };
+  session: SessionState;
+  event: BotEvent;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  reply: (text: string, options?: ReplyOptions) => Promise<void>;
+  replyWithButtons: (text: string, buttons: InlineButton[][]) => Promise<void>;
+  gate: (feature: string) => GateResult;
+  db: SupabaseClient;
+}
+
+export interface BotModule {
+  name: string;
+  commands: string[];
+  canHandle(event: BotEvent, session: SessionState): boolean;
+  handle(ctx: BotContext): Promise<ModuleResult>;
 }
