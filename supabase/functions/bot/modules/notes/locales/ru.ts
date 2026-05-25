@@ -6,4 +6,11 @@ export const ru: Record<string, string> = {
   note_btn_skip: 'Без задачи',
   notes_empty: 'Заметок нет.',
   error_empty_note: 'Текст заметки не может быть пустым.',
+  meet_started: 'Встреча начата. Отправляй заметки — каждое сообщение сохраняется. /endmeet чтобы завершить.',
+  meet_note_saved: '✅ {count}',
+  meet_ended: 'Встреча завершена. Заметок: {count}.',
+  meet_ended_attach: 'Встреча завершена. Заметок: {count}. Прикрепить к задаче?',
+  meet_attached: 'Все заметки прикреплены к задаче ✅',
+  meet_btn_skip: 'Без задачи',
+  meet_not_active: 'Сейчас нет активной встречи.',
 };

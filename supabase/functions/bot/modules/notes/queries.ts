@@ -55,6 +55,35 @@ export async function getRecentNotes(db: SupabaseClient, workspaceId: string): P
   return (data ?? []) as Note[];
 }
 
+export async function createNoteInMeeting(
+  db: SupabaseClient,
+  workspaceId: string,
+  content: string,
+  sessionId: string,
+): Promise<void> {
+  const { error } = await db
+    .from('notes')
+    .insert({ workspace_id: workspaceId, content, source: 'text', session_id: sessionId });
+
+  if (error) throw new Error(`createNoteInMeeting: ${error.message}`);
+}
+
+export async function attachMeetingToTask(
+  db: SupabaseClient,
+  workspaceId: string,
+  sessionId: string,
+  taskId: string,
+): Promise<void> {
+  const { error } = await db
+    .from('notes')
+    .update({ task_id: taskId })
+    .eq('workspace_id', workspaceId)
+    .eq('session_id', sessionId)
+    .is('deleted_at', null);
+
+  if (error) throw new Error(`attachMeetingToTask: ${error.message}`);
+}
+
 export async function getOpenTasksForPicker(db: SupabaseClient, workspaceId: string): Promise<TaskPick[]> {
   const { data, error } = await db
     .from('tasks')

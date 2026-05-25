@@ -43,6 +43,22 @@
 
 ---
 
+## 2026-05-26 (продолжение 2)
+
+### Этап 5.2 — Meeting mode
+
+**Новые команды:**
+- `/meet` → генерирует `session_id = crypto.randomUUID()`, сессия `meet_active { sessionId, noteCount: 0 }`.
+- Каждое текстовое сообщение в `meet_active` → `createNoteInMeeting(content, sessionId)` → ответ `✅ {N}`.
+- `/endmeet` → если нет задач — "Встреча завершена. Заметок: N." + clear. Если задачи есть → кнопки выбора + `meet_task:<task_id>` / `meet_skip`.
+- `handleMeetTaskAttach` → bulk UPDATE notes SET task_id WHERE session_id = ? (одна операция на все заметки).
+
+**Защиты:**
+- `/endmeet` без активной встречи → «Сейчас нет активной встречи.»
+- `meet_skip` возвращает счётчик заметок из session.data.noteCount.
+
+---
+
 ## 2026-05-26 (продолжение)
 
 ### Этап 5.1 — Модуль Notes
