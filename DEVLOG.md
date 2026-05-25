@@ -68,6 +68,17 @@ supabase/functions/bot/modules/tasks/
 
 **Деплой:** `supabase functions deploy bot --project-ref orrlwzsvrliipcigmzfi --no-verify-jwt` — успешно.
 
+### Этапы 4.5–4.6 — Фильтры и экран «сегодня»
+
+**Новые команды:**
+- `/filter` — выводит кнопки с темами воркспейса; по клику `filter_topic:<id>` показывает открытые задачи в теме (до 10).
+- `/today` — выборка: `due_at <= конец_сегодня_UTC AND status IN ('open','in_progress') AND deleted_at IS NULL`, сортировка ASC. Просроченные (due < now) помечаются ⚠️, сегодняшние — 📅. Дата форматируется через `toLocaleDateString` с `timeZone: 'UTC'`.
+
+**Решения:**
+- Фильтр по теме не требует сессии — всё в callback_data (`filter_topic:<id>`).
+- Даты отображаются в UTC без конвертации по часовым поясам (поддержка TZ заморожена до отдельной фичи).
+- `getTasksDueOrOverdue` считает `endOfToday = setUTCHours(23,59,59,999)` внутри запроса.
+
 ---
 
 ### Этап 3 — Ядро

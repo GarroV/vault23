@@ -81,3 +81,49 @@ export async function updateTaskStatus(
 
   return !error;
 }
+
+export async function getTasksByTopic(
+  db: SupabaseClient,
+  workspaceId: string,
+  topicId: string,
+): Promise<Task[]> {
+  const { data, error } = await db
+    .from('tasks')
+    .select('id, title')
+    .eq('workspace_id', workspaceId)
+    .eq('topic_id', topicId)
+    .in('status', ['open', 'in_progress'])
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) throw new Error(`getTasksByTopic: ${error.message}`);
+  return (data ?? []) as Task[];
+}
+
+export interface TaskDue {
+  id: string;
+  title: string;
+  due_at: string;
+}
+
+export async function getTasksDueOrOverdue(
+  db: SupabaseClient,
+  workspaceId: string,
+): Promise<TaskDue[]> {
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(23, 59, 59, 999);
+
+  const { data, error } = await db
+    .from('tasks')
+    .select('id, title, due_at')
+    .eq('workspace_id', workspaceId)
+    .in('status', ['open', 'in_progress'])
+    .is('deleted_at', null)
+    .not('due_at', 'is', null)
+    .lte('due_at', endOfToday.toISOString())
+    .order('due_at', { ascending: true });
+
+  if (error) throw new Error(`getTasksDueOrOverdue: ${error.message}`);
+  return (data ?? []) as TaskDue[];
+}

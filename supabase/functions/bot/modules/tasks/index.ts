@@ -8,13 +8,16 @@ import {
   handleTopicSelection,
   handleTaskListCommand,
   handleStatusChange,
+  handleFilterCommand,
+  handleTopicFilter,
+  handleTodayCommand,
 } from './handlers.ts';
 
 registerLocale(ru, en);
 
 export class TasksModule implements BotModule {
   readonly name = 'tasks';
-  readonly commands = ['/task', '/tasks'];
+  readonly commands = ['/task', '/tasks', '/filter', '/today'];
 
   canHandle(event: BotEvent, session: SessionState): boolean {
     if (session.state.startsWith('task_')) return true;
@@ -22,7 +25,8 @@ export class TasksModule implements BotModule {
       return (
         event.callbackData?.startsWith('task_done:') ||
         event.callbackData?.startsWith('task_defer:') ||
-        event.callbackData?.startsWith('task_topic:')
+        event.callbackData?.startsWith('task_topic:') ||
+        event.callbackData?.startsWith('filter_topic:')
       ) ?? false;
     }
     return false;
@@ -33,11 +37,14 @@ export class TasksModule implements BotModule {
 
     if (event.command === '/tasks') return handleTaskListCommand(ctx);
     if (event.command === '/task') return handleTaskCommand(ctx);
+    if (event.command === '/filter') return handleFilterCommand(ctx);
+    if (event.command === '/today') return handleTodayCommand(ctx);
 
     if (event.type === 'callback_query') {
       const data = event.callbackData ?? '';
       if (data.startsWith('task_topic:')) return handleTopicSelection(ctx);
       if (data.startsWith('task_done:') || data.startsWith('task_defer:')) return handleStatusChange(ctx);
+      if (data.startsWith('filter_topic:')) return handleTopicFilter(ctx);
     }
 
     if (session.state === 'task_awaiting_title' && event.type === 'text') return handleTitleInput(ctx);

@@ -1,5 +1,12 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
-import { getVisibleTopics, createTask, getOpenTasks, updateTaskStatus } from './queries.ts';
+import {
+  getVisibleTopics,
+  createTask,
+  getOpenTasks,
+  updateTaskStatus,
+  getTasksByTopic,
+  getTasksDueOrOverdue,
+} from './queries.ts';
 
 export async function handleTaskCommand(ctx: BotContext): Promise<ModuleResult> {
   await ctx.reply(ctx.t('ask_task_title'));
@@ -80,6 +87,79 @@ export async function handleTaskListCommand(ctx: BotContext): Promise<ModuleResu
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[tasks] handleTaskListCommand error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
+export async function handleFilterCommand(ctx: BotContext): Promise<ModuleResult> {
+  try {
+    const topics = await getVisibleTopics(ctx.db, ctx.user.workspaceId);
+    const buttons = topics.map(t => [{ text: t.name, callbackData: `filter_topic:${t.id}` }]);
+    await ctx.replyWithButtons(ctx.t('filter_choose_topic'), buttons);
+    return { ok: true, clearSession: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[tasks] handleFilterCommand error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
+export async function handleTopicFilter(ctx: BotContext): Promise<ModuleResult> {
+  const topicId = ctx.event.callbackData?.split(':')[1];
+  if (!topicId) {
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+
+  try {
+    const tasks = await getTasksByTopic(ctx.db, ctx.user.workspaceId, topicId);
+    if (tasks.length === 0) {
+      await ctx.reply(ctx.t('filter_topic_empty'));
+      return { ok: true, clearSession: true };
+    }
+    for (const task of tasks) {
+      await ctx.replyWithButtons(task.title, [[
+        { text: ctx.t('task_btn_done'), callbackData: `task_done:${task.id}` },
+        { text: ctx.t('task_btn_defer'), callbackData: `task_defer:${task.id}` },
+      ]]);
+    }
+    return { ok: true, clearSession: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[tasks] handleTopicFilter error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
+export async function handleTodayCommand(ctx: BotContext): Promise<ModuleResult> {
+  try {
+    const tasks = await getTasksDueOrOverdue(ctx.db, ctx.user.workspaceId);
+    if (tasks.length === 0) {
+      await ctx.reply(ctx.t('today_empty'));
+      return { ok: true, clearSession: true };
+    }
+    const now = new Date();
+    for (const task of tasks) {
+      const due = new Date(task.due_at);
+      const isOverdue = due < now;
+      const dateStr = due.toLocaleDateString(ctx.user.language === 'ru' ? 'ru-RU' : 'en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
+      const text = `${task.title}\n${isOverdue ? '⚠️' : '📅'} ${dateStr}`;
+      await ctx.replyWithButtons(text, [[
+        { text: ctx.t('task_btn_done'), callbackData: `task_done:${task.id}` },
+        { text: ctx.t('task_btn_defer'), callbackData: `task_defer:${task.id}` },
+      ]]);
+    }
+    return { ok: true, clearSession: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[tasks] handleTodayCommand error', { error: message, userId: ctx.user.id });
     await ctx.reply(ctx.t('error_unexpected'));
     return { ok: false, clearSession: true };
   }
