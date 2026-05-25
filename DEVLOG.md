@@ -43,6 +43,31 @@
 
 ---
 
+## 2026-05-26 (продолжение)
+
+### Этап 5.1 — Модуль Notes
+
+**Структура:**
+```
+supabase/functions/bot/modules/notes/
+  index.ts    — NotesModule
+  handlers.ts — handleNoteCommand, handleNoteContentInput, handleTaskAttach,
+                handleNoteSkip, handleNotesListCommand
+  queries.ts  — createNote, attachNoteToTask, getRecentNotes, getOpenTasksForPicker
+  locales/ru.ts, en.ts
+```
+
+**UX-поток `/note`:**
+1. `/note` → «Введи текст заметки:» → сессия `note_awaiting_content`
+2. Пользователь вводит текст → createNote → если есть открытые задачи → предлагает прикрепить (кнопки задач + «Без задачи»)
+3. `note_task:<task_id>` → attachNoteToTask → «Прикреплено ✅»; `note_skip` → «Заметка сохранена ✅»
+
+**Ограничение Telegram:** callback_data ≤ 64 байт. `note_task:<uuid>` = 46 chars ✓. noteId хранится в сессии, не в callback.
+
+**`/notes`** — последние 10 заметок, превью 200 символов, дата в формате «DD Mon».
+
+---
+
 ## 2026-05-26
 
 ### Этап 4 — Модуль Tasks (шаги 4.1–4.4)

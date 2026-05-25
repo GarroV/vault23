@@ -9,10 +9,12 @@ import { loadSession, saveSession, clearSession } from './core/session.ts';
 import { loadWorkspace, buildContext } from './core/context.ts';
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
 import { TasksModule } from './modules/tasks/index.ts';
+import { NotesModule } from './modules/notes/index.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 const registry = new ModuleRegistry();
 registry.register(new TasksModule());
+registry.register(new NotesModule());
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
