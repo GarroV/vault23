@@ -51,3 +51,11 @@
 - Вебхук зарегистрирован: `setWebhook?url=https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1/bot`.
 - Проверено: бот отвечает эхом на сообщения.
 - Следующий шаг (3.2): добавить верификацию через secret token в URL вебхука.
+
+**3.2 · Идентификация пользователя**
+- `core/types.ts` — общие типы: `TelegramUpdate`, `TelegramUser`, `UserIdentity`, `Language`.
+- `core/identify.ts` — `identifyUser(db, from)`: ищет пользователя по Telegram ID в `auth_methods`.
+- Авторегистрация: новый пользователь → workspace → user → auth_method → people → bot_session.
+- Язык: `language_code === 'ru'` → русский, иначе → английский.
+- Все операции через service_role (RLS bypass для auth lookup без workspace контекста).
+- `index.ts` обновлён: идентификация до передачи в обработчик, userId в логах.
