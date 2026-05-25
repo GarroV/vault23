@@ -18,8 +18,9 @@ export interface TelegramUpdate {
     chat: { id: number };
     from?: TelegramUser;
     text?: string;
-    voice?: { file_id: string; duration: number };
-    document?: { file_id: string; file_name?: string; mime_type?: string };
+    voice?: { file_id: string; duration: number; file_size?: number; mime_type?: string };
+    document?: { file_id: string; file_name?: string; mime_type?: string; file_size?: number };
+    photo?: Array<{ file_id: string; width: number; height: number; file_size?: number }>;
   };
   callback_query?: {
     id: string;
@@ -45,7 +46,9 @@ export interface BotEvent {
   command?: string;
   callbackData?: string;
   fileId?: string;
+  fileName?: string;
   mimeType?: string;
+  fileSize?: number;
   rawUpdate: unknown;
 }
 

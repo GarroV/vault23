@@ -36,3 +36,20 @@ export async function sendMessageWithKeyboard(
 export async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {
   await post(token, 'answerCallbackQuery', { callback_query_id: callbackQueryId });
 }
+
+export async function getFilePath(token: string, fileId: string): Promise<string> {
+  const url = `https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`getFile ${res.status}: ${await res.text()}`);
+  const json = await res.json() as { ok: boolean; result?: { file_path?: string } };
+  const filePath = json.result?.file_path;
+  if (!filePath) throw new Error('getFile: no file_path in response');
+  return filePath;
+}
+
+export async function downloadTelegramFile(token: string, filePath: string): Promise<Uint8Array> {
+  const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`download file ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}

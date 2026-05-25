@@ -13,4 +13,6 @@ export const en: Record<string, string> = {
   meet_attached: 'All notes attached to task ✅',
   meet_btn_skip: 'No task',
   meet_not_active: 'No active meeting right now.',
+  voice_saved: '🎤 Saved: {text}',
+  voice_empty: 'Could not recognise speech. Please try again.',
 };

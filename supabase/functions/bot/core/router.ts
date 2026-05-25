@@ -10,6 +10,8 @@ export function normalizeEvent(update: TelegramUpdate): BotEvent | null {
         type: 'voice',
         source: 'voice',
         fileId: message.voice.file_id,
+        mimeType: message.voice.mime_type ?? 'audio/ogg',
+        fileSize: message.voice.file_size,
         rawUpdate: update,
       };
     }
@@ -20,7 +22,23 @@ export function normalizeEvent(update: TelegramUpdate): BotEvent | null {
         type: 'file',
         source: 'keyboard',
         fileId: message.document.file_id,
+        fileName: message.document.file_name,
         mimeType: message.document.mime_type,
+        fileSize: message.document.file_size,
+        rawUpdate: update,
+      };
+    }
+
+    if (message.photo && message.photo.length > 0) {
+      const largest = message.photo[message.photo.length - 1];
+      return {
+        updateId: update.update_id,
+        type: 'file',
+        source: 'keyboard',
+        fileId: largest.file_id,
+        fileName: 'photo.jpg',
+        mimeType: 'image/jpeg',
+        fileSize: largest.file_size,
         rawUpdate: update,
       };
     }

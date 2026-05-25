@@ -68,6 +68,65 @@ export async function handleNoteSkip(ctx: BotContext): Promise<ModuleResult> {
   return { ok: true, clearSession: true };
 }
 
+async function transcribeWithWhisper(audioBytes: Uint8Array, mimeType: string): Promise<string> {
+  const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+
+  const form = new FormData();
+  form.append('file', new Blob([audioBytes], { type: mimeType }), 'voice.ogg');
+  form.append('model', 'whisper-1');
+
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  if (!res.ok) throw new Error(`Whisper ${res.status}: ${await res.text()}`);
+  const json = await res.json() as { text?: string };
+  return json.text?.trim() ?? '';
+}
+
+export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
+  const fileId = ctx.event.fileId;
+  const mimeType = ctx.event.mimeType ?? 'audio/ogg';
+
+  if (!fileId) {
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+
+  try {
+    const { getFilePath, downloadTelegramFile } = await import('../../telegram.ts');
+    const token = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
+    const filePath = await getFilePath(token, fileId);
+    const audioBytes = await downloadTelegramFile(token, filePath);
+    const text = await transcribeWithWhisper(audioBytes, mimeType);
+
+    if (!text) {
+      await ctx.reply(ctx.t('voice_empty'));
+      return { ok: false, clearSession: true };
+    }
+
+    const noteId = await createNote(ctx.db, ctx.user.workspaceId, text);
+    await ctx.reply(ctx.t('voice_saved', { text }));
+
+    const tasks = await getOpenTasksForPicker(ctx.db, ctx.user.workspaceId);
+    if (tasks.length === 0) return { ok: true, clearSession: true };
+
+    const taskButtons = tasks.map(t => [{ text: t.title, callbackData: `note_task:${t.id}` }]);
+    taskButtons.push([{ text: ctx.t('note_btn_skip'), callbackData: 'note_skip' }]);
+    await ctx.replyWithButtons(ctx.t('note_attach_ask'), taskButtons);
+
+    return { ok: true, session: { state: 'note_awaiting_task', data: { noteId } } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[notes] handleVoiceNote error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
 export async function handleMeetCommand(ctx: BotContext): Promise<ModuleResult> {
   const sessionId = crypto.randomUUID();
   await ctx.reply(ctx.t('meet_started'));

@@ -13,6 +13,7 @@ import {
   handleEndMeetCommand,
   handleMeetTaskAttach,
   handleMeetSkip,
+  handleVoiceNote,
 } from './handlers.ts';
 
 registerLocale(ru, en);
@@ -22,6 +23,7 @@ export class NotesModule implements BotModule {
   readonly commands = ['/note', '/notes', '/meet', '/endmeet'];
 
   canHandle(event: BotEvent, session: SessionState): boolean {
+    if (event.type === 'voice') return true;
     if (session.state.startsWith('note_') || session.state.startsWith('meet_')) return true;
     if (event.type === 'callback_query') {
       return (
@@ -36,6 +38,8 @@ export class NotesModule implements BotModule {
 
   async handle(ctx: BotContext): Promise<ModuleResult> {
     const { event, session } = ctx;
+
+    if (event.type === 'voice') return handleVoiceNote(ctx);
 
     if (event.command === '/note') return handleNoteCommand(ctx);
     if (event.command === '/notes') return handleNotesListCommand(ctx);

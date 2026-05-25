@@ -43,6 +43,29 @@
 
 ---
 
+## 2026-05-26 (продолжение 3)
+
+### Этапы 5.3–5.6 — Attachments + Voice
+
+**Расширения ядра:**
+- `core/types.ts`: добавлены `photo[]` в TelegramUpdate, `fileName/fileSize` в BotEvent, `mime_type/file_size` в voice.
+- `core/router.ts`: обработка `message.photo` → берёт последний (наибольший) элемент → `type: 'file'`.
+- `telegram.ts`: добавлены `getFilePath(token, fileId)` и `downloadTelegramFile(token, filePath)`.
+
+**Модуль `attachments/` (5.3–5.4):**
+- Срабатывает на `event.type === 'file'` через `canHandle` (без команды).
+- Проверяет `fileSize > 20 МБ` до загрузки.
+- Сохраняет `fileId/fileName/mimeType` в сессию `attach_awaiting_task`, скачивает файл ТОЛЬКО после выбора задачи (не хранит временные файлы).
+- `uploadAndRecord`: создаёт bucket "attachments" (идемпотентно), загружает по пути `workspaceId/tasks/taskId/uuid-fileName`, записывает в таблицу `attachments` (entity_type='task').
+- Полиморфность через `entity_type + entity_id` (схема Data Model).
+
+**Voice → Whisper → note (5.5–5.6, в модуле notes):**
+- `handleVoiceNote`: скачивает аудио → OpenAI Whisper API (whisper-1) → текст → createNote (source='voice') → показывает транскрипцию → предлагает прикрепить к задаче.
+- Пустая транскрипция → `voice_empty` + clear session.
+- Используется тот же `note_awaiting_task` поток что и для текстовых заметок.
+
+---
+
 ## 2026-05-26 (продолжение 2)
 
 ### Этап 5.2 — Meeting mode

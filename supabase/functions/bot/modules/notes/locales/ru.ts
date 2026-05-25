@@ -13,4 +13,6 @@ export const ru: Record<string, string> = {
   meet_attached: 'Все заметки прикреплены к задаче ✅',
   meet_btn_skip: 'Без задачи',
   meet_not_active: 'Сейчас нет активной встречи.',
+  voice_saved: '🎤 Сохранено: {text}',
+  voice_empty: 'Не удалось распознать речь. Попробуй ещё раз.',
 };
