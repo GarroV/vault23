@@ -134,7 +134,20 @@ Deno.serve(async (req: Request) => {
 
     // ── /help ────────────────────────────────────────────────────────────────
     if (event.command === '/help') {
-      await sendMessage(telegramToken, chatId, t('help_text'));
+      await sendMessageWithKeyboard(telegramToken, chatId, t('help_intro'), [
+        [{ text: t('help_btn_tasks'), callback_data: 'help_tasks' }, { text: t('help_btn_notes'), callback_data: 'help_notes' }],
+        [{ text: t('help_btn_voice'), callback_data: 'help_voice' }, { text: t('help_btn_reminders'), callback_data: 'help_reminders' }],
+        [{ text: t('help_btn_contacts'), callback_data: 'help_contacts' }, { text: t('help_btn_kb'), callback_data: 'help_kb' }],
+        [{ text: t('help_btn_integrations'), callback_data: 'help_integrations' }, { text: t('help_btn_account'), callback_data: 'help_account' }],
+      ]);
+      return new Response('OK', { status: 200 });
+    }
+
+    // ── help section callbacks (before workspace load — only needs t()) ──────
+    if (event.type === 'callback_query' && event.callbackData?.startsWith('help_')) {
+      const section = event.callbackData as 'help_tasks' | 'help_notes' | 'help_voice' | 'help_reminders' | 'help_contacts' | 'help_kb' | 'help_integrations' | 'help_account';
+      await sendMessage(telegramToken, chatId, t(section));
+      await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
       return new Response('OK', { status: 200 });
     }
 
