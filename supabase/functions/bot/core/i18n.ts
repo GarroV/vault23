@@ -9,10 +9,21 @@ export function registerLocale(ruKeys: Record<string, string>, enKeys: Record<st
   Object.assign(extra.en, enKeys);
 }
 
-export function createTranslator(language: Language) {
+/** Returns the full merged locale maps (static + registered modules). Used by cabinet-api. */
+export function getAllLocales(): Record<Language, Record<string, string>> {
+  return {
+    ru: { ...(ru as Record<string, string>), ...extra.ru },
+    en: { ...(en as Record<string, string>), ...extra.en },
+  };
+}
+
+export function createTranslator(
+  language: Language,
+  overrides?: Record<Language, Record<string, string>>,
+) {
   return function t(key: string, params?: Record<string, string | number>): string {
-    const primary = { ...(ru as Record<string, string>), ...extra.ru };
-    const fallback = { ...(en as Record<string, string>), ...extra.en };
+    const primary  = { ...(ru as Record<string, string>), ...extra.ru,  ...(overrides?.ru  ?? {}) };
+    const fallback = { ...(en as Record<string, string>), ...extra.en, ...(overrides?.en ?? {}) };
     const source = language === 'ru' ? primary : fallback;
     let text = source[key] ?? fallback[key] ?? key;
 

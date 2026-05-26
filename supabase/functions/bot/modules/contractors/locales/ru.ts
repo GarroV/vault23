@@ -5,4 +5,12 @@ export const ru: Record<string, string> = {
   error_empty_contractor_name: 'Имя не может быть пустым.',
   ask_find_query: 'Что ищем? Введи имя или ключевое слово:',
   find_empty: 'По запросу «{query}» ничего не найдено.',
+  ask_service_name: 'Введи название услуги:',
+  ask_service_price: 'Введи цену (например 1500 или 1500/час), или /skip:',
+  ask_service_contractor: 'Привязать к подрядчику?',
+  service_btn_no_contractor: 'Без подрядчика',
+  service_created: 'Услуга добавлена: {name} ✅',
+  services_empty: 'Услуг нет. Добавь первую командой /addservice.',
+  error_empty_service_name: 'Название не может быть пустым.',
+  error_invalid_price: 'Неверный формат цены. Введи число (например 1500 или 1500/час) или /skip.',
 };

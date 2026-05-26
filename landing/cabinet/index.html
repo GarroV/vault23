@@ -152,6 +152,45 @@
 
     .hidden { display: none !important; }
     .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+
+    /* Locale table */
+    .locale-toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+    .locale-search {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: .4rem .75rem; border-radius: .5rem; font-size: .875rem; flex: 1; max-width: 320px;
+    }
+    .locale-filter { font-size: .8rem; color: var(--muted); margin-left: auto; }
+    .locale-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .locale-table th {
+      text-align: left; color: var(--muted); font-weight: 500;
+      padding: .4rem .5rem; border-bottom: 1px solid var(--border);
+      font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .locale-table td { padding: .35rem .5rem; border-bottom: 1px solid rgba(51,65,85,.4); vertical-align: top; }
+    .locale-table tr:last-child td { border-bottom: none; }
+    .locale-key { font-family: monospace; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+    .locale-cell { position: relative; }
+    .locale-val {
+      display: block; width: 100%; background: transparent; border: 1px solid transparent;
+      color: var(--text); font-size: .8rem; padding: .2rem .4rem; border-radius: .35rem;
+      resize: none; font-family: inherit; line-height: 1.4; min-height: 1.8rem;
+    }
+    .locale-val:hover { border-color: var(--border); }
+    .locale-val:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+    .locale-val.overridden { color: #60a5fa; }
+    .locale-row-save {
+      display: none; margin-top: .25rem; gap: .3rem;
+    }
+    .locale-row-save.visible { display: flex; }
+    .btn-locale-save {
+      background: var(--accent); color: #fff; border: none;
+      padding: .2rem .6rem; border-radius: .35rem; cursor: pointer; font-size: .75rem; font-weight: 600;
+    }
+    .btn-locale-reset {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: .2rem .6rem; border-radius: .35rem; cursor: pointer; font-size: .75rem;
+    }
+    .locale-status { font-size: .7rem; color: var(--green); margin-top: .2rem; }
   </style>
 </head>
 <body>
@@ -177,8 +216,11 @@
 <main id="app" class="hidden">
   <div class="tabs" id="tab-bar">
     <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
-    <button class="tab" id="tab-admin" data-tab="admin" onclick="switchTab('admin')" style="display:none">
+    <button class="tab" id="tab-admin-btn" data-tab="admin" onclick="switchTab('admin')" style="display:none">
       Admin ⚙️
+    </button>
+    <button class="tab" id="tab-locales-btn" data-tab="locales" onclick="switchTab('locales')" style="display:none">
+      Locales
     </button>
   </div>
 
@@ -189,6 +231,7 @@
 
   <!-- Admin tab -->
   <div id="tab-admin-content" class="hidden">
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
 
       <!-- Platform stats -->
@@ -214,6 +257,32 @@
         <div id="config-msg" class="config-msg hidden"></div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Locales tab -->
+  <div id="tab-locales-content" class="hidden">
+    <div class="card">
+      <div class="card-title">Bot Text Overrides</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem">
+        Edit any bot message. Leave empty to restore the default. Changes take effect immediately without redeployment.
+      </p>
+      <div class="locale-toolbar">
+        <input type="search" id="locale-search" class="locale-search" placeholder="Filter keys…" oninput="filterLocales()" />
+        <span class="locale-filter" id="locale-count"></span>
+      </div>
+      <div style="max-height:60vh;overflow-y:auto">
+        <table class="locale-table" id="locale-table">
+          <thead>
+            <tr>
+              <th style="width:220px">Key</th>
+              <th>RU</th>
+              <th>EN</th>
+            </tr>
+          </thead>
+          <tbody id="locale-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </main>
@@ -317,8 +386,10 @@ async function loadDashboard() {
   renderOverview(data);
 
   if (data.isAdmin) {
-    document.getElementById('tab-admin').style.display = '';
+    document.getElementById('tab-admin-btn').style.display = '';
+    document.getElementById('tab-locales-btn').style.display = '';
     loadAdminTab();
+    loadLocalesTab();
   }
 }
 
@@ -456,6 +527,85 @@ function showConfigMsg(msg, ok) {
   setTimeout(() => el.classList.add('hidden'), 4000);
 }
 
+// ── Locales tab ──────────────────────────────────────────────────────────────
+
+let allLocales = [];
+
+async function loadLocalesTab() {
+  const data = await apiFetch('/locales');
+  allLocales = data.locales || [];
+  renderLocales(allLocales);
+}
+
+function renderLocales(rows) {
+  const tbody = document.getElementById('locale-tbody');
+  document.getElementById('locale-count').textContent = `${rows.length} keys`;
+  tbody.innerHTML = rows.map(r => `
+    <tr id="lr-${r.key}">
+      <td class="locale-key">${r.key}</td>
+      <td class="locale-cell">
+        <textarea class="locale-val ${r.ru_overridden ? 'overridden' : ''}" rows="1"
+          id="lv-ru-${r.key}" data-key="${r.key}" data-lang="ru"
+          oninput="onLocaleInput(this)">${escHtml(r.ru)}</textarea>
+        <div class="locale-row-save" id="ls-ru-${r.key}">
+          <button class="btn-locale-save" onclick="saveLocale('ru','${r.key}')">Save</button>
+          <button class="btn-locale-reset" onclick="resetLocale('ru','${r.key}','${escAttr(r.ru)}')">Reset</button>
+        </div>
+      </td>
+      <td class="locale-cell">
+        <textarea class="locale-val ${r.en_overridden ? 'overridden' : ''}" rows="1"
+          id="lv-en-${r.key}" data-key="${r.key}" data-lang="en"
+          oninput="onLocaleInput(this)">${escHtml(r.en)}</textarea>
+        <div class="locale-row-save" id="ls-en-${r.key}">
+          <button class="btn-locale-save" onclick="saveLocale('en','${r.key}')">Save</button>
+          <button class="btn-locale-reset" onclick="resetLocale('en','${r.key}','${escAttr(r.en)}')">Reset</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterLocales() {
+  const q = document.getElementById('locale-search').value.toLowerCase();
+  const filtered = q ? allLocales.filter(r =>
+    r.key.includes(q) || r.ru.toLowerCase().includes(q) || r.en.toLowerCase().includes(q)
+  ) : allLocales;
+  renderLocales(filtered);
+}
+
+function onLocaleInput(ta) {
+  const lang = ta.dataset.lang;
+  const key = ta.dataset.key;
+  const saveBar = document.getElementById(`ls-${lang}-${key}`);
+  saveBar.classList.add('visible');
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+
+function resetLocale(lang, key, original) {
+  document.getElementById(`lv-${lang}-${key}`).value = original;
+  document.getElementById(`ls-${lang}-${key}`).classList.remove('visible');
+}
+
+async function saveLocale(lang, key) {
+  const value = document.getElementById(`lv-${lang}-${key}`).value;
+  try {
+    await apiFetch('/locales', { method: 'POST', body: JSON.stringify({ lang, key, value }) });
+    const ta = document.getElementById(`lv-${lang}-${key}`);
+    ta.classList.toggle('overridden', value !== '');
+    document.getElementById(`ls-${lang}-${key}`).classList.remove('visible');
+    const orig = allLocales.find(r => r.key === key);
+    if (orig) {
+      if (lang === 'ru') { orig.ru = value; orig.ru_overridden = value !== ''; }
+      else               { orig.en = value; orig.en_overridden = value !== ''; }
+    }
+  } catch {
+    alert('Save failed. Please try again.');
+  }
+}
+
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s||'').replace(/'/g,'&#39;').replace(/\n/g,'\\n'); }
+
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
 function switchTab(tab) {
@@ -463,6 +613,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
   document.getElementById('tab-admin-content').classList.toggle('hidden', tab !== 'admin');
+  document.getElementById('tab-locales-content').classList.toggle('hidden', tab !== 'locales');
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────

@@ -25,6 +25,17 @@ export async function loadWorkspace(db: SupabaseClient, workspaceId: string): Pr
   return data as WorkspaceData;
 }
 
+export async function loadLocaleOverrides(
+  db: SupabaseClient,
+): Promise<Record<'ru' | 'en', Record<string, string>>> {
+  const { data } = await db.from('locale_overrides').select('lang, key, value');
+  const result: Record<'ru' | 'en', Record<string, string>> = { ru: {}, en: {} };
+  for (const row of (data ?? []) as Array<{ lang: string; key: string; value: string }>) {
+    if (row.lang === 'ru' || row.lang === 'en') result[row.lang][row.key] = row.value;
+  }
+  return result;
+}
+
 export function buildContext(params: {
   identity: UserIdentity;
   workspace: WorkspaceData;
@@ -33,9 +44,10 @@ export function buildContext(params: {
   chatId: number;
   telegramToken: string;
   db: SupabaseClient;
+  localeOverrides?: Record<'ru' | 'en', Record<string, string>>;
 }): BotContext {
-  const { identity, workspace, session, event, chatId, telegramToken, db } = params;
-  const t = createTranslator(identity.language);
+  const { identity, workspace, session, event, chatId, telegramToken, db, localeOverrides } = params;
+  const t = createTranslator(identity.language, localeOverrides);
 
   return {
     user: {

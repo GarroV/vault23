@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault23 — Help</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --border:  #334155;
+      --text:    #f1f5f9;
+      --muted:   #94a3b8;
+      --accent:  #3b82f6;
+      --green:   #22c55e;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      padding-bottom: 4rem;
+    }
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem;
+    }
+    .logo { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+    .tagline { font-size: .875rem; color: var(--muted); }
+
+    main { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+    h1 { font-size: 1.75rem; margin-bottom: .5rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2.5rem; font-size: .95rem; line-height: 1.6; }
+
+    /* Section */
+    .section { margin-bottom: 2.5rem; }
+    .section-title {
+      font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;
+      padding-bottom: .5rem; border-bottom: 1px solid var(--border);
+      color: var(--accent);
+    }
+
+    /* Command list */
+    .cmd-list { display: flex; flex-direction: column; gap: .75rem; }
+    .cmd-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: .75rem; padding: 1rem 1.25rem;
+      display: grid; grid-template-columns: 180px 1fr; gap: .5rem; align-items: start;
+    }
+    .cmd-name {
+      font-family: monospace; font-size: .9rem; color: var(--green);
+      font-weight: 600; padding-top: .1rem;
+    }
+    .cmd-desc { font-size: .875rem; line-height: 1.55; color: var(--muted); }
+    .cmd-desc strong { color: var(--text); }
+
+    /* FAQ */
+    details {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: .75rem; margin-bottom: .625rem; overflow: hidden;
+    }
+    summary {
+      padding: .875rem 1.25rem; cursor: pointer; font-size: .9rem;
+      font-weight: 500; list-style: none; display: flex;
+      justify-content: space-between; align-items: center;
+      user-select: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; color: var(--muted); font-size: 1.1rem; }
+    details[open] summary::after { content: '−'; }
+    details[open] summary { border-bottom: 1px solid var(--border); }
+    .faq-body { padding: 1rem 1.25rem; font-size: .875rem; line-height: 1.65; color: var(--muted); }
+    .faq-body strong { color: var(--text); }
+    .faq-body code {
+      font-family: monospace; background: var(--bg);
+      padding: .1rem .4rem; border-radius: .3rem; font-size: .85em; color: var(--green);
+    }
+
+    /* Plans table */
+    .plans-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .plans-table th {
+      text-align: left; color: var(--muted); font-weight: 500;
+      padding: .5rem .75rem; border-bottom: 1px solid var(--border);
+      font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .plans-table td { padding: .625rem .75rem; border-bottom: 1px solid rgba(51,65,85,.5); }
+    .plans-table tr:last-child td { border-bottom: none; }
+    .plans-table .plan-name { font-weight: 600; color: var(--text); }
+    .check { color: var(--green); }
+    .dash  { color: var(--muted); }
+
+    @media (max-width: 600px) {
+      .cmd-item { grid-template-columns: 1fr; gap: .25rem; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <span class="logo">Vault23</span>
+  <span class="tagline">Help & Reference</span>
+</header>
+
+<main>
+  <h1>Help Center</h1>
+  <p class="subtitle">
+    Vault23 is your Telegram-based workspace for tasks, notes, reminders, and contractors.
+    Everything is saved to your private workspace — just type or use the commands below.
+  </p>
+
+  <!-- Getting started -->
+  <div class="section">
+    <div class="section-title">Getting Started</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/start</span>
+        <span class="cmd-desc">Register and activate your workspace. Run this once when you first open the bot.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/help</span>
+        <span class="cmd-desc">Show a quick command reference inside the bot.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/language</span>
+        <span class="cmd-desc">Switch the bot language between <strong>Russian</strong> and <strong>English</strong>.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/stats</span>
+        <span class="cmd-desc">Show your workspace summary — open tasks, notes count, pending reminders.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tasks -->
+  <div class="section">
+    <div class="section-title">Tasks</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/task</span>
+        <span class="cmd-desc">Create a new task. The bot will ask for a title; you can also just type naturally and it will recognize the task intent.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/tasks</span>
+        <span class="cmd-desc">List your open and in-progress tasks with inline action buttons.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/done</span>
+        <span class="cmd-desc">Mark a task as completed. You'll get a numbered list to pick from.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/search</span>
+        <span class="cmd-desc">Full-text search across all your tasks and notes.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="section">
+    <div class="section-title">Notes</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/note</span>
+        <span class="cmd-desc">Save a quick note. The bot stores anything you send after the command.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/notes</span>
+        <span class="cmd-desc">Browse your recent notes with pagination.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reminders -->
+  <div class="section">
+    <div class="section-title">Reminders</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/remind</span>
+        <span class="cmd-desc">Set a reminder. Example: <em>/remind Call client tomorrow at 10:00</em>. Natural-language date parsing supported.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/reminders</span>
+        <span class="cmd-desc">List all pending reminders. Tap one to cancel it.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contractors & Services -->
+  <div class="section">
+    <div class="section-title">Contractors &amp; Services</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/contractor</span>
+        <span class="cmd-desc">Add a new contractor (person or company) to your workspace directory.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/contractors</span>
+        <span class="cmd-desc">List all contractors with their contact info.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/find</span>
+        <span class="cmd-desc">Search contractors by name or specialization.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/addservice</span>
+        <span class="cmd-desc">Add a service (price position) to your pricelist. Enter name, price, and optionally link to a contractor.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/services</span>
+        <span class="cmd-desc">List your pricelist, grouped by contractor.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Knowledge base -->
+  <div class="section">
+    <div class="section-title">Knowledge Base</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/kb</span>
+        <span class="cmd-desc">Open the knowledge base menu — search, add, or list articles.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Integrations -->
+  <div class="section">
+    <div class="section-title">Integrations</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/google</span>
+        <span class="cmd-desc">Connect your Google account to sync with Google Calendar and Drive.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/email</span>
+        <span class="cmd-desc">Send emails directly from the bot using your configured email address.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account -->
+  <div class="section">
+    <div class="section-title">Account &amp; Privacy</div>
+    <div class="cmd-list">
+      <div class="cmd-item">
+        <span class="cmd-name">/subscription</span>
+        <span class="cmd-desc">View your current plan, usage limits, and billing details.</span>
+      </div>
+      <div class="cmd-item">
+        <span class="cmd-name">/deletedata</span>
+        <span class="cmd-desc">Permanently delete your workspace and all data. This action is <strong>irreversible</strong> — you will be asked to confirm by typing DELETE.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="section">
+    <div class="section-title">Frequently Asked Questions</div>
+
+    <details>
+      <summary>How do I add team members to my workspace?</summary>
+      <div class="faq-body">
+        Share your workspace invite link (available via <code>/subscription</code>). Anyone who joins through that link is added to your workspace and can create tasks and notes visible to the whole team.
+      </div>
+    </details>
+
+    <details>
+      <summary>Are my tasks and notes private?</summary>
+      <div class="faq-body">
+        Yes. Each workspace is fully isolated — other workspaces cannot see your data. Within a workspace, all members share the same data. If you want to keep something private, create a separate personal workspace.
+      </div>
+    </details>
+
+    <details>
+      <summary>What happens when my trial ends?</summary>
+      <div class="faq-body">
+        Your workspace moves to the <strong>free</strong> tier automatically. You keep access to all your data and core features. Paid features (voice processing, email sending) will be paused until you subscribe.
+      </div>
+    </details>
+
+    <details>
+      <summary>Can I export my data?</summary>
+      <div class="faq-body">
+        You can use <code>/pricelist</code> to generate a printable PDF of your services. Full data export is on the roadmap. Until then, contact support and we'll send you a JSON dump within 48 hours.
+      </div>
+    </details>
+
+    <details>
+      <summary>How do I delete my account?</summary>
+      <div class="faq-body">
+        Send <code>/deletedata</code> to the bot. After confirmation, your entire workspace — tasks, notes, reminders, contractors, files — is permanently erased. This cannot be undone.
+      </div>
+    </details>
+
+    <details>
+      <summary>My reminder didn't fire — what happened?</summary>
+      <div class="faq-body">
+        Reminders are processed every minute. If a reminder was missed, check that your workspace is active (not suspended). All times are stored in UTC — make sure the time you set matches UTC, not your local timezone (timezone conversion is a planned feature).
+      </div>
+    </details>
+
+    <details>
+      <summary>How do I get the pricelist PDF?</summary>
+      <div class="faq-body">
+        After adding services with <code>/addservice</code>, open your personal cabinet at the link in your bot profile. The <strong>Pricelist</strong> page generates a print-ready page you can save as PDF from your browser (File → Print → Save as PDF).
+      </div>
+    </details>
+  </div>
+
+</main>
+</body>
+</html>

@@ -11,6 +11,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { verifyJwt } from '../bot/core/jwt.ts';
 import { listConfigs, setConfig, maskValue, CONFIGURABLE_KEYS } from '../bot/core/config.ts';
+import { getAllLocales } from '../bot/core/i18n.ts';
 import { getPlanLimits } from '../bot/core/plans.ts';
 
 const CORS = {
@@ -173,6 +174,83 @@ Deno.serve(async (req: Request) => {
       notes: notes.count ?? 0,
       byStatus,
     });
+  }
+
+  // ── GET /locales ──────────────────────────────────────────────────────────
+  if (path === '/locales' && req.method === 'GET') {
+    if (!claims.isAdmin) return json({ error: 'forbidden' }, 403);
+
+    const defaults = getAllLocales();
+    const { data: rows } = await db.from('locale_overrides').select('lang, key, value').order('key');
+    const overrides: Record<string, Record<string, string>> = { ru: {}, en: {} };
+    for (const r of (rows ?? []) as Array<{ lang: string; key: string; value: string }>) {
+      if (r.lang === 'ru' || r.lang === 'en') overrides[r.lang][r.key] = r.value;
+    }
+
+    const allKeys = new Set([...Object.keys(defaults.ru), ...Object.keys(defaults.en)]);
+    const result = Array.from(allKeys).sort().map(key => ({
+      key,
+      ru: overrides.ru[key] ?? defaults.ru[key] ?? '',
+      en: overrides.en[key] ?? defaults.en[key] ?? '',
+      ru_overridden: key in overrides.ru,
+      en_overridden: key in overrides.en,
+    }));
+
+    return json({ locales: result });
+  }
+
+  // ── POST /locales ─────────────────────────────────────────────────────────
+  if (path === '/locales' && req.method === 'POST') {
+    if (!claims.isAdmin) return json({ error: 'forbidden' }, 403);
+
+    let body: { lang: string; key: string; value: string };
+    try { body = await req.json(); } catch { return json({ error: 'bad_request' }, 400); }
+
+    const lang = body.lang?.toLowerCase().trim();
+    const key = body.key?.trim();
+    const value = body.value?.trim();
+
+    if (!lang || !key || value === undefined) return json({ error: 'missing_fields' }, 400);
+    if (lang !== 'ru' && lang !== 'en') return json({ error: 'invalid_lang' }, 400);
+
+    if (value === '') {
+      await db.from('locale_overrides').delete().eq('lang', lang).eq('key', key);
+    } else {
+      await db.from('locale_overrides').upsert(
+        { lang, key, value, updated_at: new Date().toISOString() },
+        { onConflict: 'lang,key' },
+      );
+    }
+
+    return json({ ok: true });
+  }
+
+  // ── GET /pricelist ────────────────────────────────────────────────────────
+  if (path === '/pricelist' && req.method === 'GET') {
+    const { data } = await db
+      .from('services')
+      .select('id, name, description, price, currency, unit, contractor_id, contractors(name)')
+      .eq('workspace_id', claims.workspaceId)
+      .is('archived_at', null)
+      .order('name');
+
+    const services = ((data ?? []) as Array<Record<string, unknown>>).map(r => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      price: r.price,
+      currency: r.currency ?? 'RUB',
+      unit: r.unit,
+      contractor_name: (r.contractors as { name?: string } | null)?.name ?? null,
+    }));
+
+    const { data: ws } = await db
+      .from('workspaces')
+      .select('name')
+      .eq('id', claims.workspaceId)
+      .single();
+
+    return json({ services, workspaceName: (ws as { name?: string } | null)?.name ?? '' });
   }
 
   return json({ error: 'not_found' }, 404);

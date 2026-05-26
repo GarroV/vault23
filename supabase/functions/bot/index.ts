@@ -6,7 +6,7 @@ import { createTranslator } from './core/i18n.ts';
 import { normalizeEvent } from './core/router.ts';
 import { ModuleRegistry } from './core/registry.ts';
 import { loadSession, saveSession, clearSession } from './core/session.ts';
-import { loadWorkspace, buildContext } from './core/context.ts';
+import { loadWorkspace, buildContext, loadLocaleOverrides } from './core/context.ts';
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
 import { TasksModule } from './modules/tasks/index.ts';
 import { NotesModule } from './modules/notes/index.ts';
@@ -151,12 +151,13 @@ Deno.serve(async (req: Request) => {
     }
 
     // Load context and route to module
-    const [session, workspace] = await Promise.all([
+    const [session, workspace, localeOverrides] = await Promise.all([
       loadSession(serviceDb, identity.userId),
       loadWorkspace(serviceDb, identity.workspaceId),
+      loadLocaleOverrides(serviceDb),
     ]);
 
-    const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb });
+    const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb, localeOverrides });
 
     // Warn user if payment is past due (on every non-/subscription command)
     if (ctx.isGracePeriod && event.command !== '/subscription') {

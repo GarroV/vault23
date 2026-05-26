@@ -5,4 +5,12 @@ export const en: Record<string, string> = {
   error_empty_contractor_name: 'Name cannot be empty.',
   ask_find_query: 'What are you looking for? Enter a name or keyword:',
   find_empty: 'Nothing found for "{query}".',
+  ask_service_name: 'Enter service name:',
+  ask_service_price: 'Enter price (e.g. 1500 or 1500/hour), or /skip:',
+  ask_service_contractor: 'Attach to a contractor?',
+  service_btn_no_contractor: 'No contractor',
+  service_created: 'Service added: {name} ✅',
+  services_empty: 'No services yet. Add one with /addservice.',
+  error_empty_service_name: 'Service name cannot be empty.',
+  error_invalid_price: 'Invalid price format. Enter a number (e.g. 1500 or 1500/hour) or /skip.',
 };
