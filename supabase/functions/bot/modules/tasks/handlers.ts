@@ -7,6 +7,13 @@ import {
   getTasksByTopic,
   getTasksDueOrOverdue,
 } from './queries.ts';
+import {
+  getTaskCalendarEventId,
+  clearTaskCalendarEventId,
+  getGoogleIntegration,
+  updateGoogleTokens,
+} from '../google/queries.ts';
+import { refreshAccessToken, deleteCalendarEvent } from '../google/calendar.ts';
 
 export async function handleTaskCommand(ctx: BotContext): Promise<ModuleResult> {
   await ctx.reply(ctx.t('ask_task_title'));
@@ -194,12 +201,24 @@ export async function handleStatusChange(ctx: BotContext): Promise<ModuleResult>
   const confirmKey = status === 'done' ? 'task_done_confirm' : 'task_deferred_confirm';
 
   try {
+    // Get calendar event ID before update (fire-and-forget cleanup after)
+    const calEventId = await getTaskCalendarEventId(ctx.db, ctx.user.workspaceId, taskId).catch(() => null);
+
     const updated = await updateTaskStatus(ctx.db, ctx.user.workspaceId, taskId, status);
     if (!updated) {
       await ctx.reply(ctx.t('task_not_found'));
       return { ok: false, clearSession: true };
     }
     await ctx.reply(ctx.t(confirmKey));
+
+    // Remove from Google Calendar (fire-and-forget)
+    if (calEventId) {
+      deleteTaskFromCalendar(ctx.db, ctx.user.id, ctx.user.workspaceId, taskId, calEventId).catch(err => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[tasks] calendar cleanup failed', { error: message, taskId });
+      });
+    }
+
     return { ok: true, clearSession: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -207,4 +226,32 @@ export async function handleStatusChange(ctx: BotContext): Promise<ModuleResult>
     await ctx.reply(ctx.t('error_unexpected'));
     return { ok: false, clearSession: true };
   }
+}
+
+async function deleteTaskFromCalendar(
+  db: BotContext['db'],
+  userId: string,
+  workspaceId: string,
+  taskId: string,
+  calEventId: string,
+): Promise<void> {
+  const integration = await getGoogleIntegration(db, userId);
+  if (!integration) return;
+
+  let accessToken = integration.access_token;
+  const expiresAt = new Date(integration.expires_at).getTime();
+
+  if (Date.now() >= expiresAt - 5 * 60 * 1000 && integration.refresh_token) {
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
+    if (clientId && clientSecret) {
+      const refreshed = await refreshAccessToken(clientId, clientSecret, integration.refresh_token);
+      accessToken = refreshed.access_token;
+      const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+      await updateGoogleTokens(db, userId, accessToken, newExpiry);
+    }
+  }
+
+  await deleteCalendarEvent(accessToken, calEventId);
+  await clearTaskCalendarEventId(db, workspaceId, taskId);
 }

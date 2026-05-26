@@ -4,8 +4,16 @@ import {
   updateGoogleTokens,
   getTasksToSync,
   setTaskCalendarEventId,
+  saveWebhookChannel,
 } from './queries.ts';
-import { refreshAccessToken, createCalendarEvent } from './calendar.ts';
+import {
+  refreshAccessToken,
+  createCalendarEvent,
+  registerWatchChannel,
+  getInitialSyncToken,
+} from './calendar.ts';
+
+const WEBHOOK_URL = 'https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1/calendar-webhook';
 
 const REDIRECT_URI = 'https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1/google-auth';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
@@ -116,5 +124,31 @@ export async function handleSyncCommand(ctx: BotContext): Promise<ModuleResult> 
     await ctx.reply(ctx.t('google_sync_done', { synced }));
   }
 
+  // Register push notification channel for two-way sync (fire-and-forget)
+  registerPushChannel(ctx.db, ctx.user.id, accessToken).catch(err => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[google] push channel registration failed', { error: message, userId: ctx.user.id });
+  });
+
   return { ok: true, clearSession: true };
+}
+
+async function registerPushChannel(
+  db: BotContext['db'],
+  userId: string,
+  accessToken: string,
+): Promise<void> {
+  const channelId = crypto.randomUUID();
+  const channelToken = crypto.randomUUID(); // used as verification token
+
+  const [channel, syncToken] = await Promise.all([
+    registerWatchChannel(accessToken, channelId, WEBHOOK_URL, channelToken),
+    getInitialSyncToken(accessToken),
+  ]);
+
+  // expiration from Google is milliseconds since epoch as string
+  const expiryMs = parseInt(channel.expiration, 10);
+  const expiryIso = new Date(expiryMs).toISOString();
+
+  await saveWebhookChannel(db, userId, channelId, expiryIso, syncToken);
 }

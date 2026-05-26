@@ -15,6 +15,7 @@ import { RemindersModule } from './modules/reminders/index.ts';
 import { ContractorsModule } from './modules/contractors/index.ts';
 import { KbModule } from './modules/kb/index.ts';
 import { GoogleModule } from './modules/google/index.ts';
+import { EmailModule } from './modules/email/index.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 const registry = new ModuleRegistry();
@@ -25,6 +26,7 @@ registry.register(new RemindersModule());
 registry.register(new ContractorsModule());
 registry.register(new KbModule());
 registry.register(new GoogleModule());
+registry.register(new EmailModule());
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {

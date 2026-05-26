@@ -5,6 +5,59 @@
 
 ---
 
+## 2026-05-26 (сессия 2)
+
+### Этап 8 — Календарь и сложные фичи
+
+**8.5 · Подзадачи**
+- `tasks/queries.ts`: `createTask` принимает опциональный `parentTaskId`.
+- `tasks/handlers.ts`: `handleSubtaskInit` (callback `task_subtask:<id>`); `handleTitleInput` и `handleTopicSelection` читают `parentTaskId` из `session.data`.
+- В списке задач кнопка ➕ Подзадача под каждой задачей.
+
+**8.3 · Голосовое управление задачами**
+- `notes/handlers.ts`: после транскрипции Whisper вызывается `detectTaskIntent(text)` через GPT-4o-mini (JSON output: `{is_task, title?}`).
+- Если намерение обнаружено — показываются кнопки «✅ Создать задачу» / «📝 Сохранить как заметку».
+- Задача создаётся ТОЛЬКО после явного подтверждения. Реализует требование 8.3 (mandatory confirmation).
+- `encodeTitle(title)`: `encodeURIComponent(title).slice(0, 40)` — влезает в 64-char Telegram лимит.
+
+**8.1 · Google OAuth**
+- Edge Function `google-auth` принимает callback с кодом и state=userId.
+- Обменивает код на токены, сохраняет в `user_integrations` (upsert by user_id+provider).
+- После OAuth уведомляет пользователя в Telegram.
+- Миграция `20260526000002_user_integrations.sql`: таблица user_integrations с RLS.
+- Требует: GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET в Supabase Secrets.
+
+**8.2 · Односторонний синк задач → Google Calendar**
+- Модуль `google` (команды `/connect`, `/sync`).
+- `/connect`: проверяет наличие интеграции; если нет — показывает кнопку-ссылку на OAuth URL (InlineButton.url).
+- `/sync`: находит задачи с `due_at` без `google_calendar_event_id`, создаёт события в primary calendar через API, сохраняет event ID.
+- Автообновление токена за 5 минут до истечения через refresh_token.
+- `InlineButton` тип расширен опциональным `url` (для URL-кнопок наряду с callback-кнопками).
+- Миграция `20260526000003_tasks_calendar_event.sql`: колонка `google_calendar_event_id` в tasks.
+
+**8.4 · Двусторонний календарь**
+- Edge Function `calendar-webhook` обрабатывает Google push notifications.
+  - `X-Goog-Resource-State: sync` → 200 OK (handshake).
+  - `X-Goog-Resource-State: exists` → инкрементальная выборка через syncToken → обновление задач.
+  - Конфликт: изменение в Google Calendar обновляет задачу (title/due_at); отмена события — логируется, задача не удаляется (только открытые задачи обновляются).
+- `/sync` после синка регистрирует push-канал (fire-and-forget); сохраняет `google_channel_id`, `google_channel_expiry`, `google_sync_token`.
+- Миграция `20260526000004_user_integrations_channel.sql`.
+- `handleStatusChange` в tasks: при завершении задачи удаляет событие из Google Calendar (fire-and-forget).
+
+**8.6 · Отправка email из бота**
+- Модуль `email` (команда `/email`).
+- Flow: /email → email получателя → тема → тело → отправка через Resend API.
+- Валидация email regex перед сохранением в session.
+- Требует: RESEND_API_KEY + EMAIL_FROM_ADDRESS в Supabase Secrets.
+- Деплой: включён в bot function.
+
+**Технические решения:**
+- Миграция 000001 (remind_cron) обёрнута в `DO $$ IF pg_cron EXISTS` — graceful fallback без расширения.
+- `getInitialSyncToken` при первом `/sync` получает baseline sync token для последующих инкрементальных выборок.
+- Все Google API-вызовы из bot-модуля — inline (нет межфункционального HTTP); calendar-webhook — отдельный функц.
+
+---
+
 ## 2026-05-25
 
 ### Этап 0 — Окружение
