@@ -100,8 +100,10 @@ export interface BotContext {
   t: (key: string, params?: Record<string, string | number>) => string;
   reply: (text: string, options?: ReplyOptions) => Promise<void>;
   replyWithButtons: (text: string, buttons: InlineButton[][]) => Promise<void>;
+  showMenu: (text: string) => Promise<void>;
   gate: (feature: string) => GateResult;
   isGracePeriod: boolean;
+  isAdmin: boolean;
   db: SupabaseClient;
 }
 

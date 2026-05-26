@@ -3,7 +3,8 @@ import type { BotContext, BotEvent, UserIdentity, SessionState, InlineButton, Re
 import { createTranslator } from './i18n.ts';
 import { gate } from './gate.ts';
 import { GRACE_STATUSES } from './plans.ts';
-import { sendMessage, sendMessageWithKeyboard } from '../telegram.ts';
+import { sendMessage, sendMessageWithKeyboard, sendMessageWithReplyKeyboard } from '../telegram.ts';
+import { buildMainKeyboard } from './menu.ts';
 
 interface WorkspaceData {
   id: string;
@@ -44,9 +45,10 @@ export function buildContext(params: {
   chatId: number;
   telegramToken: string;
   db: SupabaseClient;
+  isAdmin?: boolean;
   localeOverrides?: Record<'ru' | 'en', Record<string, string>>;
 }): BotContext {
-  const { identity, workspace, session, event, chatId, telegramToken, db, localeOverrides } = params;
+  const { identity, workspace, session, event, chatId, telegramToken, db, isAdmin = false, localeOverrides } = params;
   const t = createTranslator(identity.language, localeOverrides);
 
   return {
@@ -79,8 +81,11 @@ export function buildContext(params: {
           ...(btn.url ? { url: btn.url } : { callback_data: btn.callbackData ?? '' }),
         }))),
       ),
+    showMenu: (text: string) =>
+      sendMessageWithReplyKeyboard(telegramToken, chatId, text, buildMainKeyboard(identity.language, isAdmin)),
     gate: (feature: string) => gate(feature, { workspaceStatus: workspace.status, workspacePlan: workspace.plan, trialEndsAt: workspace.trial_ends_at }),
     isGracePeriod: GRACE_STATUSES.has(workspace.status),
+    isAdmin,
     db,
   };
 }

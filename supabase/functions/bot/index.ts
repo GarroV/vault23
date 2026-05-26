@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendMessage, answerCallbackQuery } from './telegram.ts';
+import { sendMessage, sendMessageWithKeyboard, sendMessageWithReplyKeyboard, answerCallbackQuery } from './telegram.ts';
 import { isProcessed, markProcessed } from './idempotency.ts';
 import { identifyUser } from './core/identify.ts';
 import { createTranslator } from './core/i18n.ts';
@@ -8,6 +8,8 @@ import { ModuleRegistry } from './core/registry.ts';
 import { loadSession, saveSession, clearSession } from './core/session.ts';
 import { loadWorkspace, buildContext, loadLocaleOverrides } from './core/context.ts';
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
+import { buildMainKeyboard } from './core/menu.ts';
+import { listConfigs } from './core/config.ts';
 import { TasksModule } from './modules/tasks/index.ts';
 import { NotesModule } from './modules/notes/index.ts';
 import { AttachmentsModule } from './modules/attachments/index.ts';
@@ -18,7 +20,7 @@ import { GoogleModule } from './modules/google/index.ts';
 import { EmailModule } from './modules/email/index.ts';
 import { BillingModule } from './modules/billing/index.ts';
 import { AdminModule } from './modules/admin/index.ts';
-import type { TelegramUpdate } from './core/types.ts';
+import type { TelegramUpdate, BotEvent } from './core/types.ts';
 
 const registry = new ModuleRegistry();
 registry.register(new AdminModule());
@@ -31,6 +33,17 @@ registry.register(new ContractorsModule());
 registry.register(new KbModule());
 registry.register(new GoogleModule());
 registry.register(new EmailModule());
+
+// Maps __menu_X__ commands to their /slash equivalents for module routing
+const MENU_TO_CMD: Record<string, string> = {
+  __menu_tasks__:       '/tasks',
+  __menu_notes__:       '/notes',
+  __menu_reminders__:   '/reminders',
+  __menu_search__:      '/search',
+  __menu_contractors__: '/contractors',
+  __menu_services__:    '/services',
+  __menu_stats__:       '/stats',
+};
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -85,19 +98,21 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    const event = normalizeEvent(update);
-    if (!event) {
+    const rawEvent = normalizeEvent(update);
+    if (!rawEvent) {
       console.log('[index] unsupported update type, skipping', { updateId });
       return new Response('OK', { status: 200 });
     }
+    let event: BotEvent = rawEvent;
 
-    // New user or /start — record consent + send onboarding
+    // Admin check (env var override; DB flag is authoritative for edge cases)
+    const isAdmin = identity.telegramId === (Deno.env.get('ADMIN_TELEGRAM_ID') ?? '');
+
+    // ── /start ──────────────────────────────────────────────────────────────
     if (identity.isNew || event.command === '/start') {
       const consentGateEnabled = Deno.env.get('CONSENT_GATE_ENABLED') === 'true';
 
       if (consentGateEnabled && !identity.isNew) {
-        // Show consent screen — user must tap agree to continue
-        // Implementation: show inline button; callback 'consent_agree' records it
         await sendMessage(telegramToken, chatId, t('consent_required'));
         return new Response('OK', { status: 200 });
       }
@@ -106,24 +121,43 @@ Deno.serve(async (req: Request) => {
         consent_given_at: new Date().toISOString(),
         consent_version: 'v1-2026-05-26',
       }).eq('id', identity.userId);
-      await sendMessage(telegramToken, chatId, t('welcome_new'));
+
+      await sendMessageWithReplyKeyboard(
+        telegramToken, chatId,
+        t('welcome_new'),
+        buildMainKeyboard(identity.language, isAdmin),
+      );
       return new Response('OK', { status: 200 });
     }
 
-    // System: /help
+    // ── /help ────────────────────────────────────────────────────────────────
     if (event.command === '/help') {
-      await sendMessage(telegramToken, chatId, t('help_text'));
+      await sendMessageWithReplyKeyboard(
+        telegramToken, chatId,
+        t('help_text'),
+        buildMainKeyboard(identity.language, isAdmin),
+      );
       return new Response('OK', { status: 200 });
     }
 
-    // System: /deletedata (OP.1 — right to erasure) — just initiate; confirmation handled below
+    // ── /menu ────────────────────────────────────────────────────────────────
+    if (event.command === '/menu') {
+      await sendMessageWithReplyKeyboard(
+        telegramToken, chatId,
+        t('menu_title'),
+        buildMainKeyboard(identity.language, isAdmin),
+      );
+      return new Response('OK', { status: 200 });
+    }
+
+    // ── /deletedata ──────────────────────────────────────────────────────────
     if (event.command === '/deletedata') {
       await serviceDb.from('bot_sessions').update({ state: 'delete_data_confirm', data: {} }).eq('user_id', identity.userId);
       await sendMessage(telegramToken, chatId, t('delete_data_confirm'));
       return new Response('OK', { status: 200 });
     }
 
-    // System: language
+    // ── /language ────────────────────────────────────────────────────────────
     if (event.command === '/language') {
       await handleLanguageCommand(telegramToken, chatId, identity);
       return new Response('OK', { status: 200 });
@@ -135,7 +169,7 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    // System: /stats (7.9 — basic analytics, no module needed)
+    // ── /stats ───────────────────────────────────────────────────────────────
     if (event.command === '/stats') {
       const wid = identity.workspaceId;
       const [taskRes, noteRes, reminderRes] = await Promise.all([
@@ -143,28 +177,115 @@ Deno.serve(async (req: Request) => {
         serviceDb.from('notes').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null),
         serviceDb.from('reminders').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).eq('status', 'pending'),
       ]);
-      const tasks = taskRes.count ?? 0;
-      const notes = noteRes.count ?? 0;
-      const reminders = reminderRes.count ?? 0;
-      await sendMessage(telegramToken, chatId, t('stats_summary', { tasks, notes, reminders }));
+      await sendMessage(telegramToken, chatId, t('stats_summary', {
+        tasks: taskRes.count ?? 0,
+        notes: noteRes.count ?? 0,
+        reminders: reminderRes.count ?? 0,
+      }));
       return new Response('OK', { status: 200 });
     }
 
-    // Load context and route to module
+    // ── Settings submenu ─────────────────────────────────────────────────────
+    if (event.command === '__menu_settings__') {
+      await sendMessageWithKeyboard(telegramToken, chatId, t('menu_settings_title'), [
+        [{ text: t('btn_language'),     callback_data: 'm_lang' }],
+        [{ text: t('btn_subscription'), callback_data: 'm_sub'  }],
+        [{ text: t('btn_delete_data'),  callback_data: 'm_del'  }],
+      ]);
+      return new Response('OK', { status: 200 });
+    }
+
+    // ── Admin submenu ────────────────────────────────────────────────────────
+    if (event.command === '__menu_admin__') {
+      if (!isAdmin) return new Response('OK', { status: 200 });
+      await sendMessageWithKeyboard(telegramToken, chatId, t('menu_admin_title'), [
+        [
+          { text: t('btn_admin_stats'),   callback_data: 'm_admin_stats' },
+          { text: t('btn_admin_cfg'),     callback_data: 'm_admin_cfg'   },
+        ],
+        [{ text: t('btn_admin_locales'), callback_data: 'm_admin_locales' }],
+      ]);
+      return new Response('OK', { status: 200 });
+    }
+
+    // ── Translate menu commands → slash commands for module routing ───────────
+    if (event.command && event.command in MENU_TO_CMD) {
+      event = { ...event, command: MENU_TO_CMD[event.command] };
+    }
+
+    // ── Load context ─────────────────────────────────────────────────────────
     const [session, workspace, localeOverrides] = await Promise.all([
       loadSession(serviceDb, identity.userId),
       loadWorkspace(serviceDb, identity.workspaceId),
       loadLocaleOverrides(serviceDb),
     ]);
 
-    const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb, localeOverrides });
+    const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb, isAdmin, localeOverrides });
 
-    // Warn user if payment is past due (on every non-/subscription command)
+    // ── Settings callbacks (need ctx for reply) ───────────────────────────────
+    if (event.type === 'callback_query') {
+      const cb = event.callbackData ?? '';
+
+      if (cb === 'm_lang') {
+        await handleLanguageCommand(telegramToken, chatId, identity);
+        await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
+        return new Response('OK', { status: 200 });
+      }
+
+      if (cb === 'm_del') {
+        await serviceDb.from('bot_sessions').update({ state: 'delete_data_confirm', data: {} }).eq('user_id', identity.userId);
+        await ctx.reply(t('delete_data_confirm'));
+        await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
+        return new Response('OK', { status: 200 });
+      }
+
+      if (cb === 'm_sub') {
+        // Re-route to billing module as /subscription
+        event = { ...event, type: 'command', command: '/subscription', source: 'button' };
+        await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
+        // Fall through to module routing below
+      }
+
+      if (isAdmin && cb === 'm_admin_stats') {
+        const [ws, usersRes, tasksRes, notesRes] = await Promise.all([
+          ctx.db.from('workspaces').select('id', { count: 'exact', head: true }),
+          ctx.db.from('users').select('id', { count: 'exact', head: true }),
+          ctx.db.from('tasks').select('id', { count: 'exact', head: true }),
+          ctx.db.from('notes').select('id', { count: 'exact', head: true }),
+        ]);
+        await ctx.reply(t('admin_stats_msg', {
+          workspaces: ws.count ?? 0,
+          users:      usersRes.count ?? 0,
+          tasks:      tasksRes.count ?? 0,
+          notes:      notesRes.count ?? 0,
+        }));
+        await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
+        return new Response('OK', { status: 200 });
+      }
+
+      if (isAdmin && cb === 'm_admin_cfg') {
+        const configs = await listConfigs(ctx.db);
+        const lines = (configs as Array<{ key: string; set: boolean }>)
+          .map(c => `${c.set ? '✓' : '○'} ${c.key}`)
+          .join('\n');
+        await ctx.reply(`⚙️ Конфигурация:\n\n${lines}`);
+        await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
+        return new Response('OK', { status: 200 });
+      }
+
+      if (isAdmin && cb === 'm_admin_locales') {
+        await ctx.reply(t('admin_locales_hint'));
+        await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
+        return new Response('OK', { status: 200 });
+      }
+    }
+
+    // ── Past-due warning ─────────────────────────────────────────────────────
     if (ctx.isGracePeriod && event.command !== '/subscription') {
       await sendMessage(telegramToken, chatId, t('past_due_warning'));
     }
 
-    // Global gate: block all actions if workspace is suspended or cancelled
+    // ── Global gate ──────────────────────────────────────────────────────────
     const globalGate = ctx.gate('any');
     if (!globalGate.allowed) {
       const key = globalGate.reason === 'workspace_suspended' ? 'gate_suspended' : 'gate_cancelled';
@@ -172,7 +293,7 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    // Handle delete data confirmation (OP.1)
+    // ── Delete data confirmation ──────────────────────────────────────────────
     if (session.state === 'delete_data_confirm' && event.type === 'text') {
       const confirmWord = identity.language === 'ru' ? 'УДАЛИТЬ' : 'DELETE';
       if ((event.text?.trim() ?? '') === confirmWord) {
@@ -185,13 +306,13 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
+    // ── Module routing ────────────────────────────────────────────────────────
     const module = registry.route(event, session);
 
     if (module) {
       console.log('[index] routing to module', { updateId, module: module.name, userId: identity.userId });
       const result = await module.handle(ctx);
 
-      // Auto-answer callback queries so Telegram clears the spinner
       if (event.type === 'callback_query' && update.callback_query?.id) {
         await answerCallbackQuery(telegramToken, update.callback_query.id).catch(() => {});
       }

@@ -1,4 +1,5 @@
 import type { TelegramUpdate, BotEvent } from './types.ts';
+import { resolveMenuButton } from './menu.ts';
 
 export function normalizeEvent(update: TelegramUpdate): BotEvent | null {
   const { message, callback_query } = update;
@@ -44,6 +45,19 @@ export function normalizeEvent(update: TelegramUpdate): BotEvent | null {
     }
 
     if (message.text) {
+      // Translate reply-keyboard menu button labels to internal commands
+      const menuKey = resolveMenuButton(message.text);
+      if (menuKey) {
+        return {
+          updateId: update.update_id,
+          type: 'command',
+          text: message.text,
+          source: 'keyboard',
+          command: `__menu_${menuKey}__`,
+          rawUpdate: update,
+        };
+      }
+
       const command = message.text.startsWith('/') ? message.text.split(/[\s@]/)[0] : undefined;
       return {
         updateId: update.update_id,

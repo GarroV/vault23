@@ -51,6 +51,23 @@ export async function sendMessageWithKeyboard(
   });
 }
 
+export async function sendMessageWithReplyKeyboard(
+  token: string,
+  chatId: number,
+  text: string,
+  keyboard: string[][],
+): Promise<void> {
+  await postWithRetry(token, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    reply_markup: {
+      keyboard: keyboard.map(row => row.map(label => ({ text: label }))),
+      resize_keyboard: true,
+      persistent: true,
+    },
+  });
+}
+
 export async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {
   await post(token, 'answerCallbackQuery', { callback_query_id: callbackQueryId });
 }
