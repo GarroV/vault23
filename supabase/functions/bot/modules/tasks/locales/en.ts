@@ -14,4 +14,8 @@ export const en: Record<string, string> = {
   filter_choose_topic: 'Choose a topic:',
   filter_topic_empty: 'No open tasks in this topic.',
   today_empty: 'No tasks due today or overdue.',
+  ask_task_deadline: '📅 Deadline? Type a date (e.g. "Friday", "May 25", "tomorrow 10:00") or skip.',
+  task_skip_deadline_btn: '⏩ No deadline',
+  task_created_with_deadline: '✅ Task created: {title}\n📅 Deadline: {date}\n⏰ I\'ll remind you then.',
+  task_deadline_invalid: 'Couldn\'t parse the date. Try again or tap "No deadline".',
 };

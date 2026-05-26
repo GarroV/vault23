@@ -14,4 +14,8 @@ export const ru: Record<string, string> = {
   filter_choose_topic: 'Выбери тему:',
   filter_topic_empty: 'В этой теме нет открытых задач.',
   today_empty: 'Нет задач на сегодня и просроченных.',
+  ask_task_deadline: '📅 Дедлайн? Напиши дату (например «пятница», «25 мая», «завтра 10:00») или пропусти.',
+  task_skip_deadline_btn: '⏩ Без дедлайна',
+  task_created_with_deadline: '✅ Задача создана: {title}\n📅 Дедлайн: {date}\n⏰ Напомню тогда же.',
+  task_deadline_invalid: 'Не получилось распознать дату. Попробуй ещё раз или нажми «Без дедлайна».',
 };

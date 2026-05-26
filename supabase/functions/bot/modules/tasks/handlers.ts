@@ -1,5 +1,7 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
 import { getConfig } from '../../core/config.ts';
+import { parseDateTime } from '../../core/nlp.ts';
+import { createReminder } from '../reminders/queries.ts';
 import {
   getVisibleTopics,
   createTask,
@@ -21,6 +23,38 @@ export async function handleTaskCommand(ctx: BotContext): Promise<ModuleResult> 
   return { ok: true, session: { state: 'task_awaiting_title', data: {} } };
 }
 
+async function askDeadline(ctx: BotContext, data: Record<string, unknown>): Promise<ModuleResult> {
+  await ctx.replyWithButtons(ctx.t('ask_task_deadline'), [
+    [{ text: ctx.t('task_skip_deadline_btn'), callbackData: 'task_skip_deadline' }],
+  ]);
+  return { ok: true, session: { state: 'task_awaiting_deadline', data } };
+}
+
+async function finalizeTask(
+  ctx: BotContext,
+  title: string,
+  topicId: string,
+  parentTaskId: string | undefined,
+  dueAt: string | null,
+): Promise<ModuleResult> {
+  await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId, dueAt);
+
+  if (dueAt) {
+    const remindAt = new Date(dueAt);
+    if (!isNaN(remindAt.getTime()) && remindAt > new Date()) {
+      await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, title, remindAt).catch(() => {});
+    }
+    const dateStr = remindAt.toLocaleDateString(
+      ctx.user.language === 'ru' ? 'ru-RU' : 'en-US',
+      { day: 'numeric', month: 'short', timeZone: 'UTC' },
+    );
+    await ctx.reply(ctx.t('task_created_with_deadline', { title, date: dateStr }));
+  } else {
+    await ctx.reply(ctx.t('task_created', { title }));
+  }
+  return { ok: true, clearSession: true };
+}
+
 export async function handleTitleInput(ctx: BotContext): Promise<ModuleResult> {
   const title = ctx.event.text?.trim() ?? '';
   if (!title) {
@@ -30,7 +64,6 @@ export async function handleTitleInput(ctx: BotContext): Promise<ModuleResult> {
 
   try {
     const topics = await getVisibleTopics(ctx.db, ctx.user.workspaceId);
-
     const parentTaskId = ctx.session.data.parentTaskId as string | undefined;
 
     if (topics.length <= 1) {
@@ -40,9 +73,7 @@ export async function handleTitleInput(ctx: BotContext): Promise<ModuleResult> {
         await ctx.reply(ctx.t('error_unexpected'));
         return { ok: false, clearSession: true };
       }
-      await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId);
-      await ctx.reply(ctx.t('task_created', { title }));
-      return { ok: true, clearSession: true };
+      return askDeadline(ctx, { title, topicId, parentTaskId });
     }
 
     const buttons = topics.map(topic => [{ text: topic.name, callbackData: `task_topic:${topic.id}` }]);
@@ -66,16 +97,33 @@ export async function handleTopicSelection(ctx: BotContext): Promise<ModuleResul
     return { ok: false, clearSession: true };
   }
 
-  try {
-    await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId);
-    await ctx.reply(ctx.t('task_created', { title }));
-    return { ok: true, clearSession: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[tasks] handleTopicSelection error', { error: message, userId: ctx.user.id });
-    await ctx.reply(ctx.t('error_unexpected'));
-    return { ok: false, clearSession: true };
+  return askDeadline(ctx, { title, topicId, parentTaskId });
+}
+
+export async function handleDeadlineInput(ctx: BotContext): Promise<ModuleResult> {
+  const { title, topicId, parentTaskId } = ctx.session.data as {
+    title: string;
+    topicId: string;
+    parentTaskId?: string;
+  };
+
+  // Skip button
+  if (ctx.event.type === 'callback_query' && ctx.event.callbackData === 'task_skip_deadline') {
+    return finalizeTask(ctx, title, topicId, parentTaskId, null);
   }
+
+  const text = ctx.event.text?.trim() ?? '';
+  if (!text) return { ok: false };
+
+  const iso = await parseDateTime(ctx.db, text, new Date().toISOString());
+  if (!iso) {
+    await ctx.replyWithButtons(ctx.t('task_deadline_invalid'), [
+      [{ text: ctx.t('task_skip_deadline_btn'), callbackData: 'task_skip_deadline' }],
+    ]);
+    return { ok: false };
+  }
+
+  return finalizeTask(ctx, title, topicId, parentTaskId, iso);
 }
 
 export async function handleSubtaskInit(ctx: BotContext): Promise<ModuleResult> {

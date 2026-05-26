@@ -6,6 +6,7 @@ import {
   handleTaskCommand,
   handleTitleInput,
   handleTopicSelection,
+  handleDeadlineInput,
   handleTaskListCommand,
   handleStatusChange,
   handleFilterCommand,
@@ -28,7 +29,8 @@ export class TasksModule implements BotModule {
         event.callbackData?.startsWith('task_defer:') ||
         event.callbackData?.startsWith('task_topic:') ||
         event.callbackData?.startsWith('filter_topic:') ||
-        event.callbackData?.startsWith('task_subtask:')
+        event.callbackData?.startsWith('task_subtask:') ||
+        event.callbackData === 'task_skip_deadline'
       ) ?? false;
     }
     return false;
@@ -48,9 +50,11 @@ export class TasksModule implements BotModule {
       if (data.startsWith('task_done:') || data.startsWith('task_defer:')) return handleStatusChange(ctx);
       if (data.startsWith('filter_topic:')) return handleTopicFilter(ctx);
       if (data.startsWith('task_subtask:')) return handleSubtaskInit(ctx);
+      if (data === 'task_skip_deadline' && session.state === 'task_awaiting_deadline') return handleDeadlineInput(ctx);
     }
 
     if (session.state === 'task_awaiting_title' && event.type === 'text') return handleTitleInput(ctx);
+    if (session.state === 'task_awaiting_deadline' && event.type === 'text') return handleDeadlineInput(ctx);
 
     console.error('[tasks] unhandled state', { state: session.state, eventType: event.type, userId: ctx.user.id });
     await ctx.reply(ctx.t('error_unexpected'));

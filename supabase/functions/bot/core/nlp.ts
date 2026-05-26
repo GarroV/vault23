@@ -11,6 +11,46 @@ export type NlpResult =
   | { intent: 'kb_ask'; question: string }
   | { intent: 'unknown' };
 
+export async function parseDateTime(
+  db: SupabaseClient,
+  text: string,
+  nowIso: string,
+): Promise<string | null> {
+  const apiKey = await getConfig(db, 'OPENAI_API_KEY');
+  if (!apiKey) return null;
+
+  const system = `Convert the user's date/time expression to an ISO 8601 UTC datetime string. Current UTC time: ${nowIso}.
+Return JSON only: {"iso":"<ISO 8601 UTC>"} or {"iso":null} if not parseable.
+No markdown, no explanation. Examples:
+- "пятница" → next Friday at 09:00 UTC
+- "25 мая" → May 25 at 09:00 UTC (current year)
+- "завтра 10:00" → tomorrow at 10:00 UTC
+- "через 2 часа" → now + 2 hours`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: text },
+        ],
+        max_tokens: 60,
+        temperature: 0,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { choices: Array<{ message: { content: string } }> };
+    const raw = json.choices[0]?.message?.content?.trim() ?? '';
+    const parsed = JSON.parse(raw) as { iso: string | null };
+    return parsed.iso ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function parseNaturalLanguage(
   db: SupabaseClient,
   text: string,
