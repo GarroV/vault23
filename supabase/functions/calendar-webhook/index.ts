@@ -14,6 +14,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getConfig } from '../bot/core/config.ts';
 import {
   getIntegrationByChannelId,
   updateGoogleTokens,
@@ -44,15 +45,22 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
 
-  if (!supabaseUrl || !serviceKey || !clientId || !clientSecret) {
+  if (!supabaseUrl || !serviceKey) {
     console.error('[calendar-webhook] missing env vars');
     return new Response('OK', { status: 200 });
   }
 
   const db = createClient(supabaseUrl, serviceKey);
+  const [clientId, clientSecret] = await Promise.all([
+    getConfig(db, 'GOOGLE_CLIENT_ID'),
+    getConfig(db, 'GOOGLE_CLIENT_SECRET'),
+  ]);
+
+  if (!clientId || !clientSecret) {
+    console.error('[calendar-webhook] Google credentials not configured');
+    return new Response('OK', { status: 200 });
+  }
 
   // Identify user by channelId
   const integration = await getIntegrationByChannelId(db, channelId);

@@ -1,15 +1,18 @@
+import { getConfig } from '../../core/config.ts';
+import type { SupabaseClient } from '../../core/types.ts';
+
 const OPENAI_API = 'https://api.openai.com/v1';
 
-function apiKey(): string {
-  const key = Deno.env.get('OPENAI_API_KEY') ?? '';
+async function apiKey(db: SupabaseClient): Promise<string> {
+  const key = await getConfig(db, 'OPENAI_API_KEY');
   if (!key) throw new Error('OPENAI_API_KEY not set');
   return key;
 }
 
-export async function generateEmbedding(text: string): Promise<number[]> {
+export async function generateEmbedding(db: SupabaseClient, text: string): Promise<number[]> {
   const res = await fetch(`${OPENAI_API}/embeddings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await apiKey(db)}` },
     body: JSON.stringify({ input: text, model: 'text-embedding-3-small' }),
   });
 
@@ -18,10 +21,10 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return json.data[0].embedding;
 }
 
-export async function chatCompletion(systemPrompt: string, userMessage: string): Promise<string> {
+export async function chatCompletion(db: SupabaseClient, systemPrompt: string, userMessage: string): Promise<string> {
   const res = await fetch(`${OPENAI_API}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await apiKey(db)}` },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       messages: [

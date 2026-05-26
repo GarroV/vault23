@@ -1,0 +1,16 @@
+export const en: Record<string, string> = {
+  admin_only: '🔒 This command is for platform admins only.',
+  config_set_ok: '✅ {key} saved.',
+  config_set_forbidden: '🚫 {key} cannot be stored in the database (bootstrapping credential).',
+  config_set_unknown: '❓ Unknown key: {key}\n\nAvailable keys:\n{keys}',
+  config_set_usage: 'Usage: /setconfig KEY VALUE',
+  config_get_usage: 'Usage: /getconfig KEY',
+  config_get_unknown: '❓ Unknown key: {key}',
+  config_get_value: '🔑 {key}: {value}',
+  config_get_not_set: '⬜ {key}: not set',
+  configs_header: '⚙️ Configuration:\n\n{rows}',
+  configs_row_set: '✅ {key}',
+  configs_row_unset: '⬜ {key}',
+  admin_stats_header: '📊 Platform stats:\n\nWorkspaces: {workspaces}\nUsers: {users}\nTasks: {tasks}\nNotes: {notes}',
+  admin_who: '👤 Platform admin: {id}\nAuth: {auth}',
+};

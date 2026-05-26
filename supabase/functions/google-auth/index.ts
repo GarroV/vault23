@@ -1,10 +1,10 @@
 /**
  * Google OAuth callback endpoint.
  *
- * Setup required (one-time, in Supabase Dashboard > Edge Functions Secrets):
+ * Setup required (one-time, via bot /setconfig command):
  *   GOOGLE_CLIENT_ID     — from Google Cloud Console
  *   GOOGLE_CLIENT_SECRET — from Google Cloud Console
- *   TELEGRAM_BOT_TOKEN   — already set
+ *   TELEGRAM_BOT_TOKEN   — env var only (bootstrapping)
  *
  * Google Cloud Console setup:
  *   - Authorized redirect URI: https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1/google-auth
@@ -12,6 +12,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getConfig } from '../bot/core/config.ts';
 
 const REDIRECT_URI = 'https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1/google-auth';
 
@@ -24,11 +25,19 @@ Deno.serve(async (req: Request) => {
     return new Response('Missing code or state', { status: 400 });
   }
 
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
+
+  if (!supabaseUrl || !serviceKey) {
+    return new Response('Config error', { status: 500 });
+  }
+
+  const db = createClient(supabaseUrl, serviceKey);
+  const [clientId, clientSecret] = await Promise.all([
+    getConfig(db, 'GOOGLE_CLIENT_ID'),
+    getConfig(db, 'GOOGLE_CLIENT_SECRET'),
+  ]);
 
   if (!clientId || !clientSecret) {
     return new Response('Google OAuth not configured', { status: 500 });
@@ -61,7 +70,6 @@ Deno.serve(async (req: Request) => {
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
   const userId = decodeURIComponent(state);
 
-  const db = createClient(supabaseUrl, serviceKey);
   await db.from('user_integrations').upsert({
     user_id: userId,
     provider: 'google',
@@ -89,9 +97,9 @@ Deno.serve(async (req: Request) => {
 async function getUserTelegramId(db: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
   const { data } = await db
     .from('auth_methods')
-    .select('provider_id')
+    .select('value')
     .eq('user_id', userId)
-    .eq('provider', 'telegram')
+    .eq('type', 'telegram')
     .single();
-  return (data as { provider_id?: string } | null)?.provider_id ?? null;
+  return (data as { value?: string } | null)?.value ?? null;
 }

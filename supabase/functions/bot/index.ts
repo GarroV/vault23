@@ -17,9 +17,11 @@ import { KbModule } from './modules/kb/index.ts';
 import { GoogleModule } from './modules/google/index.ts';
 import { EmailModule } from './modules/email/index.ts';
 import { BillingModule } from './modules/billing/index.ts';
+import { AdminModule } from './modules/admin/index.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 const registry = new ModuleRegistry();
+registry.register(new AdminModule());
 registry.register(new BillingModule());
 registry.register(new TasksModule());
 registry.register(new NotesModule());

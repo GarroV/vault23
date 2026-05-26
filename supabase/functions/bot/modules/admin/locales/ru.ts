@@ -1,0 +1,16 @@
+export const ru: Record<string, string> = {
+  admin_only: '🔒 Эта команда доступна только администраторам платформы.',
+  config_set_ok: '✅ {key} сохранён.',
+  config_set_forbidden: '🚫 {key} нельзя хранить в базе данных (загрузочные учётные данные).',
+  config_set_unknown: '❓ Неизвестный ключ: {key}\n\nДоступные ключи:\n{keys}',
+  config_set_usage: 'Использование: /setconfig КЛЮЧ ЗНАЧЕНИЕ',
+  config_get_usage: 'Использование: /getconfig КЛЮЧ',
+  config_get_unknown: '❓ Неизвестный ключ: {key}',
+  config_get_value: '🔑 {key}: {value}',
+  config_get_not_set: '⬜ {key}: не задан',
+  configs_header: '⚙️ Конфигурация:\n\n{rows}',
+  configs_row_set: '✅ {key}',
+  configs_row_unset: '⬜ {key}',
+  admin_stats_header: '📊 Статистика платформы:\n\nРабочих пространств: {workspaces}\nПользователей: {users}\nЗадач: {tasks}\nЗаметок: {notes}',
+  admin_who: '👤 Администратор платформы: {id}\nАутентификация: {auth}',
+};

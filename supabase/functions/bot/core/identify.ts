@@ -63,9 +63,15 @@ async function registerUser(
     .single();
   if (wsError || !workspace) throw new Error(`workspace creation failed: ${wsError?.message}`);
 
+  // First registered user becomes the platform admin
+  const { count: existingUsers } = await db
+    .from('users')
+    .select('id', { count: 'exact', head: true });
+  const isPlatformAdmin = (existingUsers ?? 0) === 0;
+
   const { data: user, error: userError } = await db
     .from('users')
-    .insert({ workspace_id: workspace.id, display_name: displayName, language })
+    .insert({ workspace_id: workspace.id, display_name: displayName, language, is_platform_admin: isPlatformAdmin })
     .select('id')
     .single();
   if (userError || !user) throw new Error(`user creation failed: ${userError?.message}`);

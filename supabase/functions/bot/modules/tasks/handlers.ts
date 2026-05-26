@@ -1,4 +1,5 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
+import { getConfig } from '../../core/config.ts';
 import {
   getVisibleTopics,
   createTask,
@@ -248,8 +249,10 @@ async function deleteTaskFromCalendar(
   const expiresAt = new Date(integration.expires_at).getTime();
 
   if (Date.now() >= expiresAt - 5 * 60 * 1000 && integration.refresh_token) {
-    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
-    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
+    const [clientId, clientSecret] = await Promise.all([
+      getConfig(db, 'GOOGLE_CLIENT_ID'),
+      getConfig(db, 'GOOGLE_CLIENT_SECRET'),
+    ]);
     if (clientId && clientSecret) {
       const refreshed = await refreshAccessToken(clientId, clientSecret, integration.refresh_token);
       accessToken = refreshed.access_token;

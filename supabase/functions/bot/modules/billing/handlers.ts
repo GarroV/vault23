@@ -1,10 +1,8 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
 import { getPlanLimits } from '../../core/plans.ts';
+import { getConfig } from '../../core/config.ts';
 import { getMonthlyUsage, countOpenTasks } from './queries.ts';
 import { createCheckoutSession, createBillingPortalSession } from './stripe.ts';
-
-const PRICE_SOLO = Deno.env.get('STRIPE_PRICE_SOLO') ?? '';
-const PRICE_TEAM = Deno.env.get('STRIPE_PRICE_TEAM') ?? '';
 
 function daysLeft(isoDate: string | undefined): number {
   if (!isoDate) return 0;
@@ -23,7 +21,11 @@ function fmtDate(isoDate: string | undefined, lang: string): string {
 
 export async function handleSubscriptionCommand(ctx: BotContext): Promise<ModuleResult> {
   const { workspace, user } = ctx;
-  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+  const [stripeKey, PRICE_SOLO, PRICE_TEAM] = await Promise.all([
+    getConfig(ctx.db, 'STRIPE_SECRET_KEY'),
+    getConfig(ctx.db, 'STRIPE_PRICE_SOLO'),
+    getConfig(ctx.db, 'STRIPE_PRICE_TEAM'),
+  ]);
 
   const usage = await getMonthlyUsage(ctx.db, workspace.id);
   const limits = getPlanLimits(workspace.plan);

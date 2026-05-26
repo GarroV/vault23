@@ -19,6 +19,7 @@ import {
   verifyStripeSignature,
   type StripeWebhookEvent,
 } from '../bot/modules/billing/stripe.ts';
+import { getConfig } from '../bot/core/config.ts';
 import {
   isEventProcessed,
   markEventProcessed,
@@ -28,12 +29,14 @@ import {
 } from '../bot/modules/billing/queries.ts';
 
 async function sendTransactionalEmail(
+  db: ReturnType<typeof createClient>,
   subject: string,
   body: string,
   toEmail: string,
 ): Promise<void> {
-  const apiKey = Deno.env.get('RESEND_API_KEY') ?? '';
-  const from = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'noreply@vault23.app';
+  const apiKey = await getConfig(db, 'RESEND_API_KEY');
+  const fromAddr = await getConfig(db, 'EMAIL_FROM_ADDRESS');
+  const from = fromAddr || 'noreply@vault23.app';
   if (!apiKey) return;
 
   await fetch('https://api.resend.com/emails', {
@@ -65,9 +68,11 @@ const PLAN_BY_PRICE: Record<string, string> = {
   // Populated from env so we don't hardcode price IDs here
 };
 
-function getPlanFromPriceId(priceId: string): string {
-  const solo = Deno.env.get('STRIPE_PRICE_SOLO') ?? '';
-  const team = Deno.env.get('STRIPE_PRICE_TEAM') ?? '';
+async function getPlanFromPriceId(db: ReturnType<typeof createClient>, priceId: string): Promise<string> {
+  const [solo, team] = await Promise.all([
+    getConfig(db, 'STRIPE_PRICE_SOLO'),
+    getConfig(db, 'STRIPE_PRICE_TEAM'),
+  ]);
   if (priceId === solo) return 'solo';
   if (priceId === team) return 'team';
   return 'solo';
@@ -106,13 +111,13 @@ async function getTelegramChatId(db: ReturnType<typeof createClient>, workspaceI
 }
 
 Deno.serve(async (req: Request) => {
-  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+  // STRIPE_WEBHOOK_SECRET must be env var — needed to authenticate before DB is available
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
 
-  if (!stripeKey || !webhookSecret || !supabaseUrl || !serviceKey) {
+  if (!webhookSecret || !supabaseUrl || !serviceKey) {
     console.error('[stripe-webhook] missing env vars');
     return new Response('Config error', { status: 500 });
   }
@@ -143,7 +148,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    await handleEvent(db, event, telegramToken);
+    await handleEvent(db, event, telegramToken, await getConfig(db, 'STRIPE_SECRET_KEY'));
     await markEventProcessed(db, event.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -159,6 +164,7 @@ async function handleEvent(
   db: ReturnType<typeof createClient>,
   event: StripeWebhookEvent,
   telegramToken: string,
+  stripeKey: string,
 ): Promise<void> {
   const obj = event.data.object;
 
@@ -176,7 +182,7 @@ async function handleEvent(
 
       // Fetch subscription to get price ID and period end
       const subRes = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
-        headers: { Authorization: `Bearer ${Deno.env.get('STRIPE_SECRET_KEY')}` },
+        headers: { Authorization: `Bearer ${stripeKey}` },
       });
       const sub = await subRes.json() as {
         current_period_end: number;
@@ -184,7 +190,7 @@ async function handleEvent(
       };
 
       const priceId = sub.items.data[0]?.price?.id ?? '';
-      const plan = getPlanFromPriceId(priceId);
+      const plan = await getPlanFromPriceId(db, priceId);
       const periodEnd = new Date(sub.current_period_end * 1000).toISOString();
 
       await activateWorkspace(db, workspaceId, customerId, subscriptionId, plan, periodEnd);
@@ -231,6 +237,7 @@ async function handleEvent(
         const email = await getUserEmail(db, workspace.id);
         if (email) {
           await sendTransactionalEmail(
+            db,
             'Payment failed — please update your card',
             'Your Vault23 payment failed. Please update your payment method to avoid account suspension.\n\nOpen the bot and use /subscription to manage your billing.',
             email,
@@ -254,6 +261,7 @@ async function handleEvent(
       const cancelEmail = await getUserEmail(db, workspace.id);
       if (cancelEmail) {
         await sendTransactionalEmail(
+          db,
           'Your Vault23 subscription has been cancelled',
           'Your subscription has been cancelled. Your data will be retained for 30 days.\n\nTo reactivate, open the bot and use /subscription.',
           cancelEmail,
@@ -270,7 +278,7 @@ async function handleEvent(
       const priceId = (obj as { items?: { data: Array<{ price: { id: string } }> } })
         ?.items?.data[0]?.price?.id ?? '';
       if (priceId) {
-        const newPlan = getPlanFromPriceId(priceId);
+        const newPlan = await getPlanFromPriceId(db, priceId);
         if (newPlan !== workspace.plan) {
           await db.from('workspaces').update({ plan: newPlan }).eq('id', workspace.id);
           console.log('[stripe-webhook] plan updated', { workspaceId: workspace.id, newPlan });

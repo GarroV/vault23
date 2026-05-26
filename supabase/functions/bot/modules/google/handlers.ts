@@ -1,4 +1,5 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
+import { getConfig } from '../../core/config.ts';
 import {
   getGoogleIntegration,
   updateGoogleTokens,
@@ -38,7 +39,7 @@ export async function handleConnectCommand(ctx: BotContext): Promise<ModuleResul
     return { ok: false, clearSession: true };
   }
 
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
+  const clientId = await getConfig(ctx.db, 'GOOGLE_CLIENT_ID');
 
   if (!clientId) {
     console.error('[google] GOOGLE_CLIENT_ID not set');
@@ -74,8 +75,8 @@ async function resolveValidToken(
 
   if (!integration.refresh_token) throw new Error('no_refresh_token');
 
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '';
+  const clientId = await getConfig(db, 'GOOGLE_CLIENT_ID');
+  const clientSecret = await getConfig(db, 'GOOGLE_CLIENT_SECRET');
   if (!clientId || !clientSecret) throw new Error('google_not_configured');
 
   const refreshed = await refreshAccessToken(clientId, clientSecret, integration.refresh_token);

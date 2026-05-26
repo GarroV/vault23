@@ -1,4 +1,5 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
+import { getConfig } from '../../core/config.ts';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,7 +32,7 @@ export async function handleEmailCommand(ctx: BotContext): Promise<ModuleResult>
     return { ok: false, clearSession: true };
   }
 
-  const apiKey = Deno.env.get('RESEND_API_KEY') ?? '';
+  const apiKey = await getConfig(ctx.db, 'RESEND_API_KEY');
   if (!apiKey) {
     await ctx.reply(ctx.t('email_not_configured'));
     return { ok: false, clearSession: true };
@@ -82,8 +83,11 @@ export async function handleBodyInput(ctx: BotContext): Promise<ModuleResult> {
 
   const to = ctx.session.data.to as string;
   const subject = ctx.session.data.subject as string;
-  const apiKey = Deno.env.get('RESEND_API_KEY') ?? '';
-  const fromAddress = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'bot@vault23.app';
+  const [apiKey, fromAddress] = await Promise.all([
+    getConfig(ctx.db, 'RESEND_API_KEY'),
+    getConfig(ctx.db, 'EMAIL_FROM_ADDRESS'),
+  ]);
+  const from = fromAddress || 'bot@vault23.app';
 
   if (!apiKey) {
     await ctx.reply(ctx.t('email_not_configured'));
@@ -91,7 +95,7 @@ export async function handleBodyInput(ctx: BotContext): Promise<ModuleResult> {
   }
 
   try {
-    await sendViaResend(apiKey, fromAddress, to, subject, body);
+    await sendViaResend(apiKey, from, to, subject, body);
     await ctx.reply(ctx.t('email_sent'));
     return { ok: true, clearSession: true };
   } catch (err) {

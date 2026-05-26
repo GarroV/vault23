@@ -1,5 +1,7 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
 import { trackUsage } from '../../core/usage.ts';
+import { getConfig } from '../../core/config.ts';
+import type { SupabaseClient } from '../../core/types.ts';
 import {
   createNote,
   attachNoteToTask,
@@ -69,8 +71,8 @@ export async function handleNoteSkip(ctx: BotContext): Promise<ModuleResult> {
   return { ok: true, clearSession: true };
 }
 
-async function transcribeWithWhisper(audioBytes: Uint8Array, mimeType: string): Promise<string> {
-  const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+async function transcribeWithWhisper(db: SupabaseClient, audioBytes: Uint8Array, mimeType: string): Promise<string> {
+  const apiKey = await getConfig(db, 'OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_API_KEY not set');
 
   const form = new FormData();
@@ -88,8 +90,8 @@ async function transcribeWithWhisper(audioBytes: Uint8Array, mimeType: string): 
   return json.text?.trim() ?? '';
 }
 
-async function detectTaskIntent(text: string): Promise<string | null> {
-  const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+async function detectTaskIntent(db: SupabaseClient, text: string): Promise<string | null> {
+  const apiKey = await getConfig(db, 'OPENAI_API_KEY');
   if (!apiKey) return null;
 
   const systemPrompt = 'You extract task creation intent from text. ' +
@@ -209,7 +211,7 @@ export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
     const token = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
     const filePath = await getFilePath(token, fileId);
     const audioBytes = await downloadTelegramFile(token, filePath);
-    const text = await transcribeWithWhisper(audioBytes, mimeType);
+    const text = await transcribeWithWhisper(ctx.db, audioBytes, mimeType);
 
     if (!text) {
       await ctx.reply(ctx.t('voice_empty'));
@@ -220,7 +222,7 @@ export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
     trackUsage(ctx.db, ctx.user.workspaceId, 'whisper', 'whisper-1', 1).catch(() => {});
 
     // NLU: detect if voice is a task command
-    const taskIntent = await detectTaskIntent(text);
+    const taskIntent = await detectTaskIntent(ctx.db, text);
     if (taskIntent) {
       // Show confirmation before creating task (8.3 mandatory confirmation)
       await ctx.replyWithButtons(

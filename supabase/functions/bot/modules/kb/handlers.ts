@@ -72,7 +72,7 @@ export async function handleKbApprove(ctx: BotContext): Promise<ModuleResult> {
       return { ok: false, clearSession: true };
     }
 
-    const embedding = await generateEmbedding(`${entry.title}\n${entry.content}`);
+    const embedding = await generateEmbedding(ctx.db, `${entry.title}\n${entry.content}`);
     await approveKbEntry(ctx.db, ctx.user.workspaceId, entryId, embedding);
     trackUsage(ctx.db, ctx.user.workspaceId, 'embedding', 'text-embedding-3-small', 1).catch(() => {});
 
@@ -128,7 +128,7 @@ export async function handleAskQuestion(ctx: BotContext): Promise<ModuleResult> 
     // Vector search: embed question, compute similarity against all approved entries
     let vectorResults: typeof ftsResults = [];
     try {
-      const queryEmbedding = await generateEmbedding(question);
+      const queryEmbedding = await generateEmbedding(ctx.db, question);
       trackUsage(ctx.db, ctx.user.workspaceId, 'embedding', 'text-embedding-3-small', 1).catch(() => {});
 
       const allEntries = await getApprovedEntries(ctx.db, ctx.user.workspaceId);
@@ -163,7 +163,7 @@ export async function handleAskQuestion(ctx: BotContext): Promise<ModuleResult> 
       `Use only the provided knowledge base context. If the answer is not in the context, say so.\n\n` +
       `Knowledge base:\n${contextText}`;
 
-    const answer = await chatCompletion(systemPrompt, question);
+    const answer = await chatCompletion(ctx.db, systemPrompt, question);
     trackUsage(ctx.db, ctx.user.workspaceId, 'chat', 'gpt-4o-mini', answer.length).catch(() => {});
 
     await ctx.reply(answer);
