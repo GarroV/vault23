@@ -24,7 +24,7 @@ export const en = {
   help_btn_notes:       '📝 Notes',
   help_btn_voice:       '🎙 Voice',
   help_btn_reminders:   '⏰ Reminders',
-  help_btn_contacts:    '👥 Contractors',
+  help_btn_contacts:    '📁 Projects',
   help_btn_kb:          '🧠 Knowledge Base',
   help_btn_integrations:'🔗 Integrations',
   help_btn_account:     '⚙️ Account',
@@ -104,27 +104,16 @@ Active reminders. Tap any to cancel it.
 How it works
 The bot checks reminders every minute and sends a notification to this chat. Time is stored in UTC — keep that in mind when entering times.`,
 
-  help_contacts: `👥 Contractors & Pricelist
+  help_contacts: `📁 Projects
 
-Add a contractor — /contractor
-The bot will ask for a name and contact details (phone, email, etc.). A contractor is a company or sole trader.
+Add a project — /project
+The bot will ask for the project name.
 
-Contractor list — /contractors
-All contractors with their contact info.
+Project list — /projects
+All your projects.
 
 Search — /find query
-Searches by name and specialty.
-
-Pricelist
-
-Add an item — /addservice
-Steps: name → price (e.g. "150/hr" or "500") → link to a contractor (optional).
-
-My services — /services
-Pricelist grouped by contractor. Items without a contractor appear in a separate block.
-
-Print pricelist
-Available in the cabinet — the /pricelist page generates a PDF-compatible document.`,
+Searches by name or keyword.`,
 
   help_kb: `🧠 Knowledge Base
 

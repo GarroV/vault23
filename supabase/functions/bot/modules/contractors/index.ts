@@ -19,7 +19,7 @@ registerLocale(ru, en);
 
 export class ContractorsModule implements BotModule {
   readonly name = 'contractors';
-  readonly commands = ['/contractor', '/contractors', '/find', '/addservice', '/services'];
+  readonly commands = ['/project', '/projects', '/find'];
 
   canHandle(event: BotEvent, session: SessionState): boolean {
     return (
@@ -34,8 +34,8 @@ export class ContractorsModule implements BotModule {
   async handle(ctx: BotContext): Promise<ModuleResult> {
     const { event, session } = ctx;
 
-    if (event.command === '/contractor')  return handleContractorCommand(ctx);
-    if (event.command === '/contractors') return handleContractorsListCommand(ctx);
+    if (event.command === '/project')  return handleContractorCommand(ctx);
+    if (event.command === '/projects') return handleContractorsListCommand(ctx);
     if (event.command === '/find')        return handleFindCommand(ctx);
     if (event.command === '/addservice')  return handleAddServiceCommand(ctx);
     if (event.command === '/services')    return handleServicesListCommand(ctx);
