@@ -9,9 +9,21 @@ import { parseNaturalLanguage, parseDateTime } from '../../core/nlp.ts';
 // ─── Formatting ──────────────────────────────────────────────────────────────
 
 function formatDate(iso: string, lang: 'ru' | 'en'): string {
-  return new Date(iso).toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US', {
+  const date = new Date(iso);
+  const diffMs = date.getTime() - Date.now();
+  const diffMin = Math.round(diffMs / 60000);
+
+  if (diffMin > 0 && diffMin < 60) {
+    return lang === 'ru' ? `через ${diffMin} мин` : `in ${diffMin} min`;
+  }
+  if (diffMin >= 60 && diffMin < 1440) {
+    const h = Math.round(diffMin / 60);
+    return lang === 'ru' ? `через ${h} ч` : `in ${h} h`;
+  }
+
+  return date.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
-  });
+  }) + ' UTC';
 }
 
 function formatItemText(item: Item, lang: 'ru' | 'en'): string {

@@ -322,10 +322,15 @@ Deno.serve(async (req: Request) => {
         await createItem(ctx.db, ctx.user.workspaceId, nlp.content, dueAt, nlp.assignee, null, null, nlp.recurrence);
         const lang = identity.language;
         if (dueAt) {
-          const dateStr = new Date(dueAt).toLocaleString(
-            lang === 'ru' ? 'ru-RU' : 'en-US',
-            { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' },
-          );
+          const dueDate = new Date(dueAt);
+          const diffMin = Math.round((dueDate.getTime() - Date.now()) / 60000);
+          const dateStr = diffMin > 0 && diffMin < 60
+            ? (lang === 'ru' ? `через ${diffMin} мин` : `in ${diffMin} min`)
+            : diffMin >= 60 && diffMin < 1440
+              ? (lang === 'ru' ? `через ${Math.round(diffMin / 60)} ч` : `in ${Math.round(diffMin / 60)} h`)
+              : dueDate.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US',
+                  { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' },
+                ) + ' UTC';
           const key = nlp.assignee ? 'nlp_item_created_due_assignee' : 'nlp_item_created_due';
           await ctx.reply(t(key, { content: nlp.content, date: dateStr, assignee: nlp.assignee ?? '' }));
         } else {
