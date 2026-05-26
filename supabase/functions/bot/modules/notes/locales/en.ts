@@ -5,6 +5,8 @@ export const en: Record<string, string> = {
   note_attached: 'Attached to task ✅',
   note_btn_skip: 'No task',
   notes_empty: 'No notes yet.',
+  note_btn_delete: '🗑 Delete',
+  note_deleted: 'Note deleted.',
   error_empty_note: 'Note text cannot be empty.',
   meet_started: 'Meeting started. Send notes — each message is saved. /endmeet to finish.',
   meet_note_saved: '✅ {count}',

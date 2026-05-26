@@ -6,6 +6,7 @@ import {
   createNote,
   attachNoteToTask,
   getRecentNotes,
+  deleteNote,
   getOpenTasksForPicker,
   createNoteInMeeting,
   attachMeetingToTask,
@@ -353,13 +354,34 @@ export async function handleNotesListCommand(ctx: BotContext): Promise<ModuleRes
         { month: 'short', day: 'numeric', timeZone: 'UTC' },
       );
       const preview = note.content.length > 200 ? `${note.content.slice(0, 200)}…` : note.content;
-      await ctx.reply(`${date} — ${preview}`);
+      await ctx.replyWithButtons(`${date} — ${preview}`, [
+        [{ text: ctx.t('note_btn_delete'), callbackData: `note_delete:${note.id}` }],
+      ]);
     }
 
     return { ok: true, clearSession: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[notes] handleNotesListCommand error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
+export async function handleNoteDelete(ctx: BotContext): Promise<ModuleResult> {
+  const noteId = ctx.event.callbackData?.split(':')[1];
+  if (!noteId) {
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+
+  try {
+    await deleteNote(ctx.db, ctx.user.workspaceId, noteId);
+    await ctx.reply(ctx.t('note_deleted'));
+    return { ok: true, clearSession: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[notes] handleNoteDelete error', { error: message, userId: ctx.user.id });
     await ctx.reply(ctx.t('error_unexpected'));
     return { ok: false, clearSession: true };
   }

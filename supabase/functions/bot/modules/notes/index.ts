@@ -7,6 +7,7 @@ import {
   handleNoteContentInput,
   handleTaskAttach,
   handleNoteSkip,
+  handleNoteDelete,
   handleNotesListCommand,
   handleMeetCommand,
   handleMeetNote,
@@ -30,6 +31,7 @@ export class NotesModule implements BotModule {
     if (event.type === 'callback_query') {
       return (
         event.callbackData?.startsWith('note_task:') ||
+        event.callbackData?.startsWith('note_delete:') ||
         event.callbackData === 'note_skip' ||
         event.callbackData?.startsWith('meet_task:') ||
         event.callbackData === 'meet_skip' ||
@@ -53,6 +55,7 @@ export class NotesModule implements BotModule {
     if (event.type === 'callback_query') {
       const data = event.callbackData ?? '';
       if (data.startsWith('note_task:')) return handleTaskAttach(ctx);
+      if (data.startsWith('note_delete:')) return handleNoteDelete(ctx);
       if (data === 'note_skip') return handleNoteSkip(ctx);
       if (data.startsWith('meet_task:')) return handleMeetTaskAttach(ctx);
       if (data === 'meet_skip') return handleMeetSkip(ctx);

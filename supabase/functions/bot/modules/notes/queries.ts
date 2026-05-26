@@ -84,6 +84,20 @@ export async function attachMeetingToTask(
   if (error) throw new Error(`attachMeetingToTask: ${error.message}`);
 }
 
+export async function deleteNote(
+  db: SupabaseClient,
+  workspaceId: string,
+  noteId: string,
+): Promise<void> {
+  const { error } = await db
+    .from('notes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', noteId)
+    .eq('workspace_id', workspaceId);
+
+  if (error) throw new Error(`deleteNote: ${error.message}`);
+}
+
 export async function getOpenTasksForPicker(db: SupabaseClient, workspaceId: string): Promise<TaskPick[]> {
   const { data, error } = await db
     .from('tasks')

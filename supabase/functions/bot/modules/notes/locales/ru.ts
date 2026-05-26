@@ -5,6 +5,8 @@ export const ru: Record<string, string> = {
   note_attached: 'Прикреплено к задаче ✅',
   note_btn_skip: 'Без задачи',
   notes_empty: 'Заметок нет.',
+  note_btn_delete: '🗑 Удалить',
+  note_deleted: 'Заметка удалена.',
   error_empty_note: 'Текст заметки не может быть пустым.',
   meet_started: 'Встреча начата. Отправляй заметки — каждое сообщение сохраняется. /endmeet чтобы завершить.',
   meet_note_saved: '✅ {count}',
