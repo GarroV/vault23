@@ -89,9 +89,26 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    // New user or /start — welcome and stop
+    // New user or /start — record consent + send onboarding
     if (identity.isNew || event.command === '/start') {
+      await serviceDb.from('users').update({
+        consent_given_at: new Date().toISOString(),
+        consent_version: 'v1-2026-05-26',
+      }).eq('id', identity.userId);
       await sendMessage(telegramToken, chatId, t('welcome_new'));
+      return new Response('OK', { status: 200 });
+    }
+
+    // System: /help
+    if (event.command === '/help') {
+      await sendMessage(telegramToken, chatId, t('help_text'));
+      return new Response('OK', { status: 200 });
+    }
+
+    // System: /deletedata (OP.1 — right to erasure) — just initiate; confirmation handled below
+    if (event.command === '/deletedata') {
+      await serviceDb.from('bot_sessions').update({ state: 'delete_data_confirm', data: {} }).eq('user_id', identity.userId);
+      await sendMessage(telegramToken, chatId, t('delete_data_confirm'));
       return new Response('OK', { status: 200 });
     }
 
@@ -140,6 +157,19 @@ Deno.serve(async (req: Request) => {
     if (!globalGate.allowed) {
       const key = globalGate.reason === 'workspace_suspended' ? 'gate_suspended' : 'gate_cancelled';
       await sendMessage(telegramToken, chatId, t(key));
+      return new Response('OK', { status: 200 });
+    }
+
+    // Handle delete data confirmation (OP.1)
+    if (session.state === 'delete_data_confirm' && event.type === 'text') {
+      const confirmWord = identity.language === 'ru' ? 'УДАЛИТЬ' : 'DELETE';
+      if ((event.text?.trim() ?? '') === confirmWord) {
+        await serviceDb.from('workspaces').delete().eq('id', identity.workspaceId);
+        await sendMessage(telegramToken, chatId, t('delete_data_done'));
+      } else {
+        await sendMessage(telegramToken, chatId, t('delete_data_wrong'));
+        await clearSession(serviceDb, identity.userId);
+      }
       return new Response('OK', { status: 200 });
     }
 

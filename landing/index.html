@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault23 — Умный ассистент для задач в Telegram</title>
+  <meta name="description" content="Управляй задачами, заметками, встречами и базой знаний прямо в Telegram. Голосовое управление, Google Calendar, AI-поиск." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans">
+
+<!-- Nav -->
+<nav class="border-b border-gray-800 px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
+  <div class="text-xl font-bold text-white">Vault<span class="text-brand-500">23</span></div>
+  <a href="https://t.me/VaultAssistantBot" target="_blank"
+     class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+    Попробовать бесплатно →
+  </a>
+</nav>
+
+<!-- Hero -->
+<section class="max-w-4xl mx-auto px-6 pt-24 pb-16 text-center">
+  <div class="inline-flex items-center gap-2 bg-brand-600/20 text-brand-400 text-sm rounded-full px-4 py-1.5 mb-6">
+    🕐 14 дней бесплатно · Карта не нужна
+  </div>
+  <h1 class="text-5xl font-extrabold text-white leading-tight mb-6">
+    Все задачи и заметки —<br/>
+    <span class="text-brand-500">прямо в Telegram</span>
+  </h1>
+  <p class="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+    AI-ассистент, который помнит всё. Создавай задачи голосом, синхронизируй с Google Calendar,
+    ищи в базе знаний — не выходя из мессенджера.
+  </p>
+  <a href="https://t.me/VaultAssistantBot" target="_blank"
+     class="inline-block bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold px-8 py-4 rounded-xl transition shadow-lg shadow-brand-600/30">
+    Открыть бота в Telegram
+  </a>
+  <p class="text-gray-500 text-sm mt-4">Бесплатно на 14 дней. Не нужно устанавливать приложение.</p>
+</section>
+
+<!-- Features -->
+<section class="max-w-6xl mx-auto px-6 py-16">
+  <h2 class="text-3xl font-bold text-center mb-12">Всё что нужно — в одном боте</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Feature cards -->
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-3xl mb-3">🎤</div>
+      <h3 class="font-semibold text-lg mb-2">Голосовые заметки</h3>
+      <p class="text-gray-400 text-sm">Отправь голосовое — бот расшифрует и создаст заметку или задачу с подтверждением.</p>
+    </div>
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-3xl mb-3">📋</div>
+      <h3 class="font-semibold text-lg mb-2">Умные задачи</h3>
+      <p class="text-gray-400 text-sm">Подзадачи, дедлайны, темы, подрядчики. Фильтрация и список "на сегодня".</p>
+    </div>
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-3xl mb-3">📅</div>
+      <h3 class="font-semibold text-lg mb-2">Google Calendar</h3>
+      <p class="text-gray-400 text-sm">Двусторонняя синхронизация. Задачи с дедлайнами → события. Изменения в календаре → обновление задач.</p>
+    </div>
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-3xl mb-3">🧠</div>
+      <h3 class="font-semibold text-lg mb-2">База знаний + AI-поиск</h3>
+      <p class="text-gray-400 text-sm">Сохраняй записи, ищи по смыслу через GPT. Ответы на основе твоих материалов.</p>
+    </div>
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-3xl mb-3">📝</div>
+      <h3 class="font-semibold text-lg mb-2">Режим встречи</h3>
+      <p class="text-gray-400 text-sm">/meet — записывай тезисы встречи сообщениями. /endmeet — все заметки сохранятся скопом.</p>
+    </div>
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-3xl mb-3">⏰</div>
+      <h3 class="font-semibold text-lg mb-2">Напоминания</h3>
+      <p class="text-gray-400 text-sm">Через 1 час, 3 часа, завтра, через 3 дня — бот напишет в нужное время.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="max-w-5xl mx-auto px-6 py-16" id="pricing">
+  <h2 class="text-3xl font-bold text-center mb-4">Тарифы</h2>
+  <p class="text-center text-gray-400 mb-12">Начни бесплатно. Платишь только когда убедишься.</p>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Trial -->
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-sm text-gray-400 uppercase tracking-wide mb-1">Триал</div>
+      <div class="text-3xl font-bold mb-1">Бесплатно</div>
+      <div class="text-gray-400 text-sm mb-6">14 дней</div>
+      <ul class="space-y-2 text-sm text-gray-300 mb-8">
+        <li>✅ До 20 задач</li>
+        <li>✅ Заметки и встречи</li>
+        <li>✅ 3 голосовые заметки в месяц</li>
+        <li>✅ 5 записей в базе знаний</li>
+        <li>❌ Google Calendar</li>
+        <li>❌ Email-отправка</li>
+        <li>❌ Подзадачи</li>
+      </ul>
+      <a href="https://t.me/VaultAssistantBot" target="_blank"
+         class="block text-center bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-lg transition text-sm font-medium">
+        Начать
+      </a>
+    </div>
+
+    <!-- Solo -->
+    <div class="bg-brand-600/10 rounded-2xl p-6 border border-brand-600 relative">
+      <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs px-3 py-1 rounded-full font-medium">Популярный</div>
+      <div class="text-sm text-brand-400 uppercase tracking-wide mb-1">Solo</div>
+      <div class="text-3xl font-bold mb-1">$9 <span class="text-lg font-normal text-gray-400">/ мес</span></div>
+      <div class="text-gray-400 text-sm mb-6">Для личного использования</div>
+      <ul class="space-y-2 text-sm text-gray-300 mb-8">
+        <li>✅ Неограниченно задач</li>
+        <li>✅ Подзадачи</li>
+        <li>✅ 50 голосовых заметок / мес</li>
+        <li>✅ 100 записей в базе знаний</li>
+        <li>✅ Google Calendar (двусторонний)</li>
+        <li>✅ Отправка email — 20 / мес</li>
+        <li>✅ Вложения до 20 МБ</li>
+      </ul>
+      <a href="https://t.me/VaultAssistantBot" target="_blank"
+         class="block text-center bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-lg transition text-sm font-medium">
+        Оформить Solo
+      </a>
+    </div>
+
+    <!-- Team -->
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+      <div class="text-sm text-gray-400 uppercase tracking-wide mb-1">Team</div>
+      <div class="text-3xl font-bold mb-1">$29 <span class="text-lg font-normal text-gray-400">/ мес</span></div>
+      <div class="text-gray-400 text-sm mb-6">До 5 участников</div>
+      <ul class="space-y-2 text-sm text-gray-300 mb-8">
+        <li>✅ Всё из Solo</li>
+        <li>✅ 200 голосовых заметок / мес</li>
+        <li>✅ 500 записей в базе знаний</li>
+        <li>✅ Отправка email — 100 / мес</li>
+        <li>✅ 5 участников</li>
+        <li>✅ Вложения до 50 МБ</li>
+      </ul>
+      <a href="https://t.me/VaultAssistantBot" target="_blank"
+         class="block text-center bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-lg transition text-sm font-medium">
+        Оформить Team
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="max-w-3xl mx-auto px-6 py-16">
+  <h2 class="text-3xl font-bold text-center mb-10">Вопросы</h2>
+  <div class="space-y-4">
+    <details class="bg-gray-900 rounded-xl p-5 border border-gray-800 group">
+      <summary class="font-medium cursor-pointer flex justify-between items-center">
+        Нужно ли устанавливать что-то, кроме Telegram?
+        <span class="text-gray-400 group-open:rotate-180 transition-transform">↓</span>
+      </summary>
+      <p class="mt-3 text-gray-400 text-sm">Нет. Vault23 — это Telegram-бот. Зайди в Telegram, открой @VaultAssistantBot и начни.</p>
+    </details>
+    <details class="bg-gray-900 rounded-xl p-5 border border-gray-800 group">
+      <summary class="font-medium cursor-pointer flex justify-between items-center">
+        Данные хранятся безопасно?
+        <span class="text-gray-400 group-open:rotate-180 transition-transform">↓</span>
+      </summary>
+      <p class="mt-3 text-gray-400 text-sm">Да. Данные хранятся в Supabase (PostgreSQL, EU region). Каждый клиент полностью изолирован. Ты можешь удалить все данные в любой момент командой /deletedata.</p>
+    </details>
+    <details class="bg-gray-900 rounded-xl p-5 border border-gray-800 group">
+      <summary class="font-medium cursor-pointer flex justify-between items-center">
+        Что происходит с данными при отмене подписки?
+        <span class="text-gray-400 group-open:rotate-180 transition-transform">↓</span>
+      </summary>
+      <p class="mt-3 text-gray-400 text-sm">Данные хранятся 30 дней после отмены. Ты можешь возобновить подписку и продолжить. Через 30 дней всё удаляется.</p>
+    </details>
+    <details class="bg-gray-900 rounded-xl p-5 border border-gray-800 group">
+      <summary class="font-medium cursor-pointer flex justify-between items-center">
+        Голосовые сообщения отправляются в OpenAI?
+        <span class="text-gray-400 group-open:rotate-180 transition-transform">↓</span>
+      </summary>
+      <p class="mt-3 text-gray-400 text-sm">Да, аудио расшифровывается через Whisper (OpenAI). Оригинальное аудио не сохраняется — только текст расшифровки.</p>
+    </details>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="max-w-3xl mx-auto px-6 py-16 text-center">
+  <h2 class="text-3xl font-bold mb-4">Начни прямо сейчас</h2>
+  <p class="text-gray-400 mb-8">14 дней бесплатно. Карта не нужна. Никакого приложения.</p>
+  <a href="https://t.me/VaultAssistantBot" target="_blank"
+     class="inline-block bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold px-8 py-4 rounded-xl transition shadow-lg shadow-brand-600/30">
+    Открыть @VaultAssistantBot
+  </a>
+</section>
+
+<!-- Footer -->
+<footer class="border-t border-gray-800 py-8 px-6 text-center text-gray-500 text-sm">
+  <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+    <div>Vault<span class="text-brand-500">23</span> © 2026</div>
+    <div class="flex gap-6">
+      <a href="/privacy" class="hover:text-gray-300 transition">Политика конфиденциальности</a>
+      <a href="/terms" class="hover:text-gray-300 transition">Условия использования</a>
+      <a href="mailto:support@vault23.app" class="hover:text-gray-300 transition">Поддержка</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -53,10 +53,12 @@ async function registerUser(
 ): Promise<UserIdentity> {
   const displayName = buildDisplayName(from);
 
-  // Workspace (trigger auto-seeds default topic + categories)
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Workspace with trial period
   const { data: workspace, error: wsError } = await db
     .from('workspaces')
-    .insert({ name: `${displayName}'s workspace` })
+    .insert({ name: `${displayName}'s workspace`, status: 'trial', trial_ends_at: trialEndsAt })
     .select('id')
     .single();
   if (wsError || !workspace) throw new Error(`workspace creation failed: ${wsError?.message}`);
@@ -78,6 +80,19 @@ async function registerUser(
     .from('people')
     .insert({ workspace_id: workspace.id, name: displayName, user_id: user.id });
   if (peopleError) throw new Error(`people creation failed: ${peopleError.message}`);
+
+  // Owner role in workspace_members
+  await db.from('workspace_members').insert({
+    workspace_id: workspace.id,
+    user_id: user.id,
+    role: 'owner',
+  });
+
+  // Anti-trial-abuse: record that this Telegram ID has used a trial
+  await db.from('used_trials').upsert(
+    { telegram_id: telegramId, workspace_id: workspace.id },
+    { onConflict: 'telegram_id', ignoreDuplicates: true },
+  );
 
   // Initial idle session
   const { error: sessionError } = await db

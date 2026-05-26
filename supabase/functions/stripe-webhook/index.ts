@@ -27,6 +27,40 @@ import {
   updateWorkspaceStatus,
 } from '../bot/modules/billing/queries.ts';
 
+async function sendTransactionalEmail(
+  subject: string,
+  body: string,
+  toEmail: string,
+): Promise<void> {
+  const apiKey = Deno.env.get('RESEND_API_KEY') ?? '';
+  const from = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'noreply@vault23.app';
+  if (!apiKey) return;
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: toEmail, subject, text: body }),
+  }).catch(err => console.error('[stripe-webhook] email send failed', { error: String(err) }));
+}
+
+async function getUserEmail(db: ReturnType<typeof createClient>, workspaceId: string): Promise<string | null> {
+  const { data: user } = await db
+    .from('users')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .single();
+  if (!user) return null;
+
+  const { data: auth } = await db
+    .from('auth_methods')
+    .select('value')
+    .eq('user_id', (user as { id: string }).id)
+    .eq('type', 'email')
+    .single();
+
+  return (auth as { value?: string } | null)?.value ?? null;
+}
+
 const PLAN_BY_PRICE: Record<string, string> = {
   // Populated from env so we don't hardcode price IDs here
 };
@@ -193,6 +227,15 @@ async function handleEvent(
         if (chatId && telegramToken) {
           await notifyUser(telegramToken, chatId, '⚠️ Оплата не прошла. Обнови способ оплаты через /subscription пока аккаунт не заблокирован (7 дней grace period).');
         }
+        // 9.14: email notification
+        const email = await getUserEmail(db, workspace.id);
+        if (email) {
+          await sendTransactionalEmail(
+            'Payment failed — please update your card',
+            'Your Vault23 payment failed. Please update your payment method to avoid account suspension.\n\nOpen the bot and use /subscription to manage your billing.',
+            email,
+          );
+        }
       }
       break;
     }
@@ -206,6 +249,15 @@ async function handleEvent(
       const chatId = await getTelegramChatId(db, workspace.id);
       if (chatId && telegramToken) {
         await notifyUser(telegramToken, chatId, '⛔ Подписка отменена. Данные будут храниться 30 дней. Возобнови подписку через /subscription.');
+      }
+      // 9.14: email notification
+      const cancelEmail = await getUserEmail(db, workspace.id);
+      if (cancelEmail) {
+        await sendTransactionalEmail(
+          'Your Vault23 subscription has been cancelled',
+          'Your subscription has been cancelled. Your data will be retained for 30 days.\n\nTo reactivate, open the bot and use /subscription.',
+          cancelEmail,
+        );
       }
       break;
     }

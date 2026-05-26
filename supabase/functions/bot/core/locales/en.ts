@@ -11,4 +11,11 @@ export const en = {
   gate_plan_limit: '⚠️ This feature is not available on your current plan. Upgrade via /subscription.',
   gate_usage_limit: '⚠️ Monthly usage limit reached. It resets next billing period or on plan upgrade.',
   past_due_warning: '⚠️ Your payment failed. Please update your payment method via /subscription before your account is suspended.',
+  welcome_new: "Hi! I'm your personal task and notes assistant.\n\n🕐 You have a 14-day trial — all features included.\n\nType /help to see available commands.",
+  welcome_back: 'Welcome back! Type /help for the command list.',
+  help_text: '📋 Commands:\n\n*Tasks*\n/task — create a task\n/tasks — list tasks\n/filter — filter by topic\n/today — today\'s deadlines\n\n*Notes*\n/note — create a note\n/notes — list notes\n/meet — meeting mode\n\n*Voice*\nSend a voice message — I\'ll transcribe and create a note or task\n\n*Reminders*\n/remind — set a reminder\n\n*Email*\n/email — send an email\n\n*Google Calendar*\n/connect — link your account\n/sync — sync tasks with due dates\n\n*Contacts*\n/contractor — add a contractor\n/contractors — list contractors\n\n*Knowledge Base*\n/addkb — add an entry\n/ask — ask your knowledge base\n\n*Account*\n/subscription — plan and billing\n/stats — statistics\n/language — language\n/deletedata — delete all my data',
+  delete_data_confirm: '⚠️ This will delete ALL your data: tasks, notes, contacts, knowledge base — everything. This cannot be undone.\n\nTo confirm, send: DELETE',
+  delete_data_cancelled: 'Cancelled. No data was deleted.',
+  delete_data_done: 'All your data has been deleted. Thank you for using the service.',
+  delete_data_wrong: 'Wrong confirmation. Type DELETE to confirm.',
 } as const;
