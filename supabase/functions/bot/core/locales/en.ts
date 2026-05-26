@@ -179,6 +179,15 @@ Language, subscription, data deletion.
 Delete data — /deletedata
 Complete and irreversible deletion of your workspace: tasks, notes, reminders, contractors, knowledge base — everything. Requires explicit confirmation.`,
 
+  // NLP responses
+  nlp_task_created: '✅ Task created: {title}',
+  nlp_task_created_deadline: '✅ Task created: {title}\n📅 Deadline: {date}',
+  nlp_note_saved: '📝 Note saved.',
+  nlp_reminder_set: '⏰ I\'ll remind you {time}',
+  nlp_reminder_past: '⚠️ That time has already passed. Please specify a future time.',
+  nlp_search_empty: '🔍 Nothing found for "{query}".',
+  nlp_search_results: '🔍 Results for "{query}":',
+
   // Menu
   menu_title: 'Main menu',
   menu_settings_title: '⚙️ Settings',

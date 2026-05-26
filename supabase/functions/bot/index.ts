@@ -321,6 +321,97 @@ Deno.serve(async (req: Request) => {
       } else if (result.session) {
         await saveSession(serviceDb, identity.userId, result.session.state, result.session.data);
       }
+    } else if (event.type === 'text' && event.text?.trim()) {
+      // NLP: parse plain text when no module claimed it
+      console.log('[index] NLP fallback', { updateId, userId: identity.userId });
+      const { parseNaturalLanguage } = await import('./core/nlp.ts');
+      const nlp = await parseNaturalLanguage(ctx.db, event.text, new Date().toISOString());
+
+      if (nlp.intent === 'create_task') {
+        const { getVisibleTopics, createTask } = await import('./modules/tasks/queries.ts');
+        const topics = await getVisibleTopics(ctx.db, ctx.user.workspaceId);
+        const topicId = topics[0]?.id;
+        if (!topicId) { await ctx.reply(t('cmd_unknown')); }
+        else {
+          await createTask(ctx.db, ctx.user.workspaceId, nlp.title, topicId, undefined, nlp.due_at);
+          if (nlp.due_at) {
+            const date = new Date(nlp.due_at).toLocaleDateString(
+              identity.language === 'ru' ? 'ru-RU' : 'en-US',
+              { day: 'numeric', month: 'short', timeZone: 'UTC' },
+            );
+            await ctx.reply(t('nlp_task_created_deadline', { title: nlp.title, date }));
+          } else {
+            await ctx.reply(t('nlp_task_created', { title: nlp.title }));
+          }
+        }
+
+      } else if (nlp.intent === 'create_note') {
+        const { createNote } = await import('./modules/notes/queries.ts');
+        await createNote(ctx.db, ctx.user.workspaceId, nlp.content);
+        await ctx.reply(t('nlp_note_saved'));
+
+      } else if (nlp.intent === 'set_reminder') {
+        const remindAt = new Date(nlp.remind_at);
+        if (isNaN(remindAt.getTime()) || remindAt <= new Date()) {
+          await ctx.reply(t('nlp_reminder_past'));
+        } else {
+          const { createReminder } = await import('./modules/reminders/queries.ts');
+          await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, nlp.text, remindAt);
+          const timeStr = remindAt.toLocaleString(
+            identity.language === 'ru' ? 'ru-RU' : 'en-US',
+            { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' },
+          );
+          await ctx.reply(t('nlp_reminder_set', { time: timeStr }));
+        }
+
+      } else if (nlp.intent === 'list_tasks') {
+        const { handleTaskListCommand } = await import('./modules/tasks/handlers.ts');
+        await handleTaskListCommand(ctx);
+
+      } else if (nlp.intent === 'list_notes') {
+        const { handleNotesListCommand } = await import('./modules/notes/handlers.ts');
+        await handleNotesListCommand(ctx);
+
+      } else if (nlp.intent === 'search') {
+        const query = nlp.query;
+        const [taskRes, noteRes] = await Promise.all([
+          ctx.db.from('tasks').select('title')
+            .eq('workspace_id', ctx.user.workspaceId).is('deleted_at', null)
+            .in('status', ['open', 'in_progress'])
+            .textSearch('title', query, { config: 'russian' }).limit(5),
+          ctx.db.from('notes').select('content')
+            .eq('workspace_id', ctx.user.workspaceId).is('deleted_at', null)
+            .textSearch('content', query, { config: 'russian' }).limit(5),
+        ]);
+        const tasks = (taskRes.data ?? []) as Array<{ title: string }>;
+        const notes = (noteRes.data ?? []) as Array<{ content: string }>;
+        if (tasks.length === 0 && notes.length === 0) {
+          await ctx.reply(t('nlp_search_empty', { query }));
+        } else {
+          const lines: string[] = [t('nlp_search_results', { query })];
+          if (tasks.length > 0) {
+            lines.push('\n📋 ' + (identity.language === 'ru' ? 'Задачи:' : 'Tasks:'));
+            tasks.forEach(tsk => lines.push(`• ${tsk.title}`));
+          }
+          if (notes.length > 0) {
+            lines.push('\n📝 ' + (identity.language === 'ru' ? 'Заметки:' : 'Notes:'));
+            notes.forEach(nt => {
+              const preview = nt.content.length > 80 ? `${nt.content.slice(0, 80)}…` : nt.content;
+              lines.push(`• ${preview}`);
+            });
+          }
+          await ctx.reply(lines.join('\n'));
+        }
+
+      } else if (nlp.intent === 'kb_ask') {
+        const { handleAskQuestion } = await import('./modules/kb/handlers.ts');
+        const kbCtx = { ...ctx, event: { ...ctx.event, text: nlp.question } };
+        await handleAskQuestion(kbCtx);
+
+      } else {
+        await ctx.reply(t('cmd_unknown'));
+      }
+
     } else {
       console.log('[index] no module matched', { updateId, userId: identity.userId });
       await ctx.reply(t('cmd_unknown'));

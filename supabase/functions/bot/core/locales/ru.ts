@@ -179,6 +179,15 @@ Email
 Удалить данные — /deletedata
 Полное и необратимое удаление воркспейса: задачи, заметки, напоминания, подрядчики, база знаний — всё. Потребует явное подтверждение.`,
 
+  // NLP responses
+  nlp_task_created: '✅ Задача создана: {title}',
+  nlp_task_created_deadline: '✅ Задача создана: {title}\n📅 Дедлайн: {date}',
+  nlp_note_saved: '📝 Заметка сохранена.',
+  nlp_reminder_set: '⏰ Напомню {time}',
+  nlp_reminder_past: '⚠️ Это время уже прошло. Укажи время в будущем.',
+  nlp_search_empty: '🔍 Ничего не найдено по запросу «{query}».',
+  nlp_search_results: '🔍 Результаты по «{query}»:',
+
   // Menu
   menu_title: 'Главное меню',
   menu_settings_title: '⚙️ Настройки',

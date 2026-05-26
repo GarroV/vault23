@@ -27,6 +27,7 @@ export async function createTask(
   title: string,
   topicId: string,
   parentTaskId?: string,
+  dueAt?: string | null,
 ): Promise<void> {
   const { error } = await db.from('tasks').insert({
     workspace_id: workspaceId,
@@ -34,6 +35,7 @@ export async function createTask(
     topic_id: topicId,
     status: 'open',
     ...(parentTaskId ? { parent_task_id: parentTaskId } : {}),
+    ...(dueAt ? { due_at: dueAt } : {}),
   });
 
   if (error) throw new Error(`createTask: ${error.message}`);
