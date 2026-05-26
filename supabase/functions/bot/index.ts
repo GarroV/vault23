@@ -12,6 +12,8 @@ import { TasksModule } from './modules/tasks/index.ts';
 import { NotesModule } from './modules/notes/index.ts';
 import { AttachmentsModule } from './modules/attachments/index.ts';
 import { RemindersModule } from './modules/reminders/index.ts';
+import { ContractorsModule } from './modules/contractors/index.ts';
+import { KbModule } from './modules/kb/index.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 const registry = new ModuleRegistry();
@@ -19,6 +21,8 @@ registry.register(new TasksModule());
 registry.register(new NotesModule());
 registry.register(new AttachmentsModule());
 registry.register(new RemindersModule());
+registry.register(new ContractorsModule());
+registry.register(new KbModule());
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -94,6 +98,21 @@ Deno.serve(async (req: Request) => {
     if (event.type === 'callback_query' && event.callbackData?.startsWith('lang_')) {
       const callbackQueryId = update.callback_query!.id;
       await handleLanguageCallback(serviceDb, telegramToken, chatId, callbackQueryId, identity, event.callbackData);
+      return new Response('OK', { status: 200 });
+    }
+
+    // System: /stats (7.9 — basic analytics, no module needed)
+    if (event.command === '/stats') {
+      const wid = identity.workspaceId;
+      const [taskRes, noteRes, reminderRes] = await Promise.all([
+        serviceDb.from('tasks').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null).in('status', ['open', 'in_progress']),
+        serviceDb.from('notes').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null),
+        serviceDb.from('reminders').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).eq('status', 'pending'),
+      ]);
+      const tasks = taskRes.count ?? 0;
+      const notes = noteRes.count ?? 0;
+      const reminders = reminderRes.count ?? 0;
+      await sendMessage(telegramToken, chatId, t('stats_summary', { tasks, notes, reminders }));
       return new Response('OK', { status: 200 });
     }
 

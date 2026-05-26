@@ -43,6 +43,34 @@
 
 ---
 
+## 2026-05-26 (продолжение 5)
+
+### Этапы 7.1, 7.3–7.7, 7.9 — Contractors + KB + Ask + Stats
+
+**Модуль `contractors/` (7.1):**
+- `/contractor` → имя → createContractor → подтверждение.
+- `/contractors` → список до 20 (ilike для FTS через `/find <query>`).
+- `/find` → ilike поиск по полю `name` с `%query%`.
+
+**Модуль `kb/` (7.3–7.7):**
+- `/addkb` → заголовок → контент → createKbEntry (status='pending') → показывает превью с кнопками [✅ Одобрить] [❌ Отклонить].
+- **Review gate (7.6):** `kb_approve:<id>` → getKbEntryById → generateEmbedding → approveKbEntry (status='approved', embedding=vector). `kb_reject:<id>` → DELETE.
+- Embedding при одобрении (не при создании) — `text-embedding-3-small`, 1536 dim.
+- `/ask` → вопрос → FTS (ilike) + vector similarity в TypeScript (cosine, порог 0.7) → GPT-4o-mini с контекстом → ответ. Если нет контекста → 'ask_no_context'.
+- Все AI-вызовы трекаются в `token_usage` (fire-and-forget).
+
+**`kb/ai.ts` — вспомогательные функции:**
+- `generateEmbedding(text)` → OpenAI embeddings API.
+- `chatCompletion(system, user)` → GPT-4o-mini, max_tokens=800, temp=0.3.
+- `cosineSimilarity(a, b)` → dot product / (|a| * |b|).
+
+**`/stats` (7.9, в index.ts):**
+- Три параллельных COUNT запроса (tasks/notes/reminders) → форматированный ответ.
+
+**Отложено:** 7.2 (services — web UI приоритет), 7.8 (PDF — требует внешней библиотеки).
+
+---
+
 ## 2026-05-26 (продолжение 4)
 
 ### Этапы 6.1–6.4 — Reminders, scheduler, token tracking, retry
