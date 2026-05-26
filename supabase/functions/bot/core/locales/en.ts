@@ -166,7 +166,7 @@ Settings — /settings
 Language, subscription, data deletion.
 
 Delete data — /deletedata
-Complete and irreversible deletion of your workspace: tasks, notes, reminders, contractors, knowledge base — everything. Requires explicit confirmation.`,
+Complete and irreversible deletion of your workspace: tasks, notes, reminders, projects, knowledge base — everything. Requires explicit confirmation.`,
 
   // NLP responses
   nlp_task_created: '✅ Task created: {title}',

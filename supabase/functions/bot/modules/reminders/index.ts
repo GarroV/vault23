@@ -2,7 +2,7 @@ import type { BotModule, BotContext, BotEvent, SessionState, ModuleResult } from
 import { registerLocale } from '../../core/i18n.ts';
 import { ru } from './locales/ru.ts';
 import { en } from './locales/en.ts';
-import { handleRemindCommand, handleRemindTextInput, handleRemindTime } from './handlers.ts';
+import { handleRemindCommand, handleRemindTextInput, handleRemindTimeTextInput } from './handlers.ts';
 
 registerLocale(ru, en);
 
@@ -11,11 +11,7 @@ export class RemindersModule implements BotModule {
   readonly commands = ['/remind'];
 
   canHandle(event: BotEvent, session: SessionState): boolean {
-    if (session.state.startsWith('remind_')) return true;
-    if (event.type === 'callback_query') {
-      return event.callbackData?.startsWith('remind_time:') ?? false;
-    }
-    return false;
+    return session.state.startsWith('remind_');
   }
 
   async handle(ctx: BotContext): Promise<ModuleResult> {
@@ -23,12 +19,12 @@ export class RemindersModule implements BotModule {
 
     if (event.command === '/remind') return handleRemindCommand(ctx);
 
-    if (event.type === 'callback_query' && event.callbackData?.startsWith('remind_time:')) {
-      return handleRemindTime(ctx);
-    }
-
     if (session.state === 'remind_awaiting_text' && event.type === 'text') {
       return handleRemindTextInput(ctx);
+    }
+
+    if (session.state === 'remind_awaiting_time_text' && event.type === 'text') {
+      return handleRemindTimeTextInput(ctx);
     }
 
     console.error('[reminders] unhandled state', { state: session.state, userId: ctx.user.id });

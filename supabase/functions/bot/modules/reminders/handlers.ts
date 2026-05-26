@@ -1,26 +1,6 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
 import { createReminder } from './queries.ts';
-
-const DURATIONS: Record<string, number> = {
-  '1h': 60 * 60 * 1000,
-  '3h': 3 * 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
-  '3d': 3 * 24 * 60 * 60 * 1000,
-};
-
-function calcRemindAt(duration: string): Date {
-  return new Date(Date.now() + (DURATIONS[duration] ?? DURATIONS['1h']));
-}
-
-function formatRemindAt(date: Date, lang: 'ru' | 'en'): string {
-  return date.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  }) + ' UTC';
-}
+import { parseDateTime } from '../../core/nlp.ts';
 
 export async function handleRemindCommand(ctx: BotContext): Promise<ModuleResult> {
   await ctx.reply(ctx.t('ask_remind_text'));
@@ -33,19 +13,12 @@ export async function handleRemindTextInput(ctx: BotContext): Promise<ModuleResu
     await ctx.reply(ctx.t('error_empty_remind'));
     return { ok: false };
   }
-
-  await ctx.replyWithButtons(ctx.t('ask_remind_when'), [
-    [{ text: ctx.t('remind_btn_1h'), callbackData: 'remind_time:1h' }],
-    [{ text: ctx.t('remind_btn_3h'), callbackData: 'remind_time:3h' }],
-    [{ text: ctx.t('remind_btn_24h'), callbackData: 'remind_time:24h' }],
-    [{ text: ctx.t('remind_btn_3d'), callbackData: 'remind_time:3d' }],
-  ]);
-
-  return { ok: true, session: { state: 'remind_awaiting_time', data: { message } } };
+  await ctx.reply(ctx.t('ask_remind_when'));
+  return { ok: true, session: { state: 'remind_awaiting_time_text', data: { message } } };
 }
 
-export async function handleRemindTime(ctx: BotContext): Promise<ModuleResult> {
-  const duration = ctx.event.callbackData?.split(':')[1] ?? '1h';
+export async function handleRemindTimeTextInput(ctx: BotContext): Promise<ModuleResult> {
+  const timeText = ctx.event.text?.trim() ?? '';
   const message = ctx.session.data.message as string | undefined;
 
   if (!message) {
@@ -53,15 +26,30 @@ export async function handleRemindTime(ctx: BotContext): Promise<ModuleResult> {
     return { ok: false, clearSession: true };
   }
 
-  const remindAt = calcRemindAt(duration);
+  const nowIso = new Date().toISOString();
+  const parsedIso = await parseDateTime(ctx.db, timeText, nowIso);
+
+  if (!parsedIso) {
+    await ctx.reply(ctx.t('error_remind_time_parse'));
+    return { ok: false };
+  }
+
+  const remindAt = new Date(parsedIso);
+  if (remindAt <= new Date()) {
+    await ctx.reply(ctx.t('nlp_reminder_past'));
+    return { ok: false };
+  }
 
   try {
     await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, message, remindAt);
-    await ctx.reply(ctx.t('remind_set', { time: formatRemindAt(remindAt, ctx.user.language) }));
+    const timeStr = remindAt.toLocaleString(ctx.user.language === 'ru' ? 'ru-RU' : 'en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+    }) + ' UTC';
+    await ctx.reply(ctx.t('remind_set', { time: timeStr }));
     return { ok: true, clearSession: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[reminders] handleRemindTime error', { error: msg, userId: ctx.user.id });
+    console.error('[reminders] handleRemindTimeTextInput error', { error: msg, userId: ctx.user.id });
     await ctx.reply(ctx.t('error_unexpected'));
     return { ok: false, clearSession: true };
   }

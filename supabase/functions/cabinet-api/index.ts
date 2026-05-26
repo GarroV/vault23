@@ -229,7 +229,7 @@ Deno.serve(async (req: Request) => {
   if (path === '/pricelist' && req.method === 'GET') {
     const { data } = await db
       .from('services')
-      .select('id, name, description, price, currency, unit, contractor_id, contractors(name)')
+      .select('id, name, description, price, currency, unit, project_id, projects(name)')
       .eq('workspace_id', claims.workspaceId)
       .is('archived_at', null)
       .order('name');
@@ -241,7 +241,7 @@ Deno.serve(async (req: Request) => {
       price: r.price,
       currency: r.currency ?? 'RUB',
       unit: r.unit,
-      contractor_name: (r.contractors as { name?: string } | null)?.name ?? null,
+      project_name: (r.projects as { name?: string } | null)?.name ?? null,
     }));
 
     const { data: ws } = await db

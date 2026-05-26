@@ -7,8 +7,8 @@ export interface Service {
   price: number | null;
   currency: string;
   unit: string | null;
-  contractor_id: string | null;
-  contractor_name: string | null;
+  project_id: string | null;
+  project_name: string | null;
 }
 
 export async function createService(
@@ -17,11 +17,11 @@ export async function createService(
   name: string,
   price: number | null,
   unit: string | null,
-  contractorId: string | null,
+  projectId: string | null,
 ): Promise<string> {
   const { data, error } = await db
     .from('services')
-    .insert({ workspace_id: workspaceId, name, price, unit, contractor_id: contractorId })
+    .insert({ workspace_id: workspaceId, name, price, unit, project_id: projectId })
     .select('id')
     .single();
   if (error || !data) throw new Error(`createService: ${error?.message}`);
@@ -34,7 +34,7 @@ export async function listServices(
 ): Promise<Service[]> {
   const { data, error } = await db
     .from('services')
-    .select('id, name, description, price, currency, unit, contractor_id, contractors(name)')
+    .select('id, name, description, price, currency, unit, project_id, projects(name)')
     .eq('workspace_id', workspaceId)
     .is('archived_at', null)
     .order('name');
@@ -46,12 +46,12 @@ export async function listServices(
     price: r.price as number | null,
     currency: (r.currency as string) ?? 'RUB',
     unit: r.unit as string | null,
-    contractor_id: r.contractor_id as string | null,
-    contractor_name: (r.contractors as { name?: string } | null)?.name ?? null,
+    project_id: r.project_id as string | null,
+    project_name: (r.projects as { name?: string } | null)?.name ?? null,
   }));
 }
 
-export interface Contractor {
+export interface Project {
   id: string;
   name: string;
   notes: string | null;
@@ -63,41 +63,41 @@ export async function createContractor(
   name: string,
 ): Promise<string> {
   const { data, error } = await db
-    .from('contractors')
+    .from('projects')
     .insert({ workspace_id: workspaceId, name })
     .select('id')
     .single();
 
-  if (error || !data) throw new Error(`createContractor: ${error?.message}`);
+  if (error || !data) throw new Error(`createProject: ${error?.message}`);
   return (data as { id: string }).id;
 }
 
-export async function listContractors(db: SupabaseClient, workspaceId: string): Promise<Contractor[]> {
+export async function listContractors(db: SupabaseClient, workspaceId: string): Promise<Project[]> {
   const { data, error } = await db
-    .from('contractors')
+    .from('projects')
     .select('id, name, notes')
     .eq('workspace_id', workspaceId)
     .is('archived_at', null)
     .order('name', { ascending: true })
     .limit(20);
 
-  if (error) throw new Error(`listContractors: ${error.message}`);
-  return (data ?? []) as Contractor[];
+  if (error) throw new Error(`listProjects: ${error.message}`);
+  return (data ?? []) as Project[];
 }
 
 export async function searchContractors(
   db: SupabaseClient,
   workspaceId: string,
   query: string,
-): Promise<Contractor[]> {
+): Promise<Project[]> {
   const { data, error } = await db
-    .from('contractors')
+    .from('projects')
     .select('id, name, notes')
     .eq('workspace_id', workspaceId)
     .is('archived_at', null)
     .ilike('name', `%${query}%`)
     .limit(10);
 
-  if (error) throw new Error(`searchContractors: ${error.message}`);
-  return (data ?? []) as Contractor[];
+  if (error) throw new Error(`searchProjects: ${error.message}`);
+  return (data ?? []) as Project[];
 }

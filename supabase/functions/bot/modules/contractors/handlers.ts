@@ -167,7 +167,7 @@ export async function handleServicesListCommand(ctx: BotContext): Promise<Module
 
     const groups = new Map<string, typeof services>();
     for (const s of services) {
-      const key = s.contractor_name ?? '__none__';
+      const key = s.project_name ?? '__none__';
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(s);
     }
