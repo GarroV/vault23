@@ -16,8 +16,25 @@ async function post(token: string, method: string, body: unknown): Promise<void>
   }
 }
 
+// Retries on transient failures (network errors, 5xx). Does NOT retry 4xx — those are caller bugs.
+async function postWithRetry(token: string, method: string, body: unknown, attempts = 3): Promise<void> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await post(token, method, body);
+      return;
+    } catch (err) {
+      const is4xx = err instanceof Error && /Telegram \w+ 4\d\d/.test(err.message);
+      if (is4xx) throw err;
+      lastError = err;
+      if (i < attempts - 1) await new Promise(r => setTimeout(r, 600 * (i + 1)));
+    }
+  }
+  throw lastError;
+}
+
 export async function sendMessage(token: string, chatId: number, text: string): Promise<void> {
-  await post(token, 'sendMessage', { chat_id: chatId, text });
+  await postWithRetry(token, 'sendMessage', { chat_id: chatId, text });
 }
 
 export async function sendMessageWithKeyboard(

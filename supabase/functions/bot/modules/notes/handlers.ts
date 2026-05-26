@@ -1,4 +1,5 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
+import { trackUsage } from '../../core/usage.ts';
 import {
   createNote,
   attachNoteToTask,
@@ -109,6 +110,8 @@ export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
     }
 
     const noteId = await createNote(ctx.db, ctx.user.workspaceId, text);
+    // Track whisper usage: 1 unit = 1 request (audio billed per minute, tracked as request count)
+    trackUsage(ctx.db, ctx.user.workspaceId, 'whisper', 'whisper-1', 1).catch(() => {});
     await ctx.reply(ctx.t('voice_saved', { text }));
 
     const tasks = await getOpenTasksForPicker(ctx.db, ctx.user.workspaceId);

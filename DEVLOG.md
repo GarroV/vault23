@@ -43,6 +43,33 @@
 
 ---
 
+## 2026-05-26 (продолжение 4)
+
+### Этапы 6.1–6.4 — Reminders, scheduler, token tracking, retry
+
+**6.1 — Модуль `reminders/` (/remind):**
+- Поток: `/remind` → текст → кнопки времени (1ч / 3ч / 24ч / 3д) → создаёт запись в `reminders`.
+- Callback: `remind_time:1h|3h|24h|3d` → вычисляет `remind_at = now() + duration`.
+- Время в подтверждении форматируется через `toLocaleString` с `timeZone: 'UTC'`.
+
+**6.2 — Edge Function `remind` (планировщик):**
+- Запрашивает `reminders WHERE status='pending' AND remind_at <= now()`, до 50 строк.
+- JOIN с `auth_methods` (provider='telegram') → получает `provider_id` = Telegram chat_id.
+- Отправляет сообщение, обновляет status='sent'. Ошибки по каждой записи не ломают цикл.
+- Расписание: нужно настроить в **Supabase Dashboard > Edge Functions > remind > Schedule** (cron: `* * * * *`). Миграция `20260526000001_remind_cron.sql` — справочная, требует pg_cron + pg_net + настройки `app.service_role_key`.
+
+**6.3 — Token tracking (`core/usage.ts`):**
+- `trackUsage(db, workspaceId, operationType, model, totalTokens)` → INSERT в `token_usage`.
+- Вызывается после каждого Whisper-запроса (total_tokens=1 = 1 запрос).
+- Fire-and-forget (`.catch(() => {})`) — не блокирует ответ пользователю.
+
+**6.4 — Retry для Telegram (`telegram.ts`):**
+- `postWithRetry(attempts=3, backoff=600ms×attempt)` оборачивает POST.
+- Только `sendMessage` использует retry; `answerCallbackQuery` — без retry (некритично).
+- 4xx-ошибки (баги в запросе) не повторяются — сразу throws.
+
+---
+
 ## 2026-05-26 (продолжение 3)
 
 ### Этапы 5.3–5.6 — Attachments + Voice
