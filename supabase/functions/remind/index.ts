@@ -11,11 +11,18 @@ interface WorkspaceUser {
   auth_methods: Array<{ value: string }>;
 }
 
-async function sendTelegramMessage(token: string, chatId: string, text: string): Promise<void> {
+async function sendReminder(token: string, chatId: string, item: DueItem): Promise<void> {
+  const assigneePart = item.assignee ? `\n👤 ${item.assignee}` : '';
+  const text = `⏰ Напоминание\n\n${item.content}${assigneePart}`;
+  const reply_markup = {
+    inline_keyboard: [[
+      { text: '✅ Готово', callback_data: `item_done:${item.id}` },
+    ]],
+  };
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify({ chat_id: chatId, text, reply_markup }),
   });
   if (!res.ok) throw new Error(`Telegram sendMessage ${res.status}: ${await res.text()}`);
 }
@@ -65,8 +72,7 @@ Deno.serve(async (_req: Request) => {
       const chatId = user.auth_methods[0]?.value;
       if (!chatId) continue;
       try {
-        const assigneePart = item.assignee ? ` → ${item.assignee}` : '';
-        await sendTelegramMessage(telegramToken, chatId, `⏰ ${item.content}${assigneePart}`);
+        await sendReminder(telegramToken, chatId, item);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[remind] failed to send', { itemId: item.id, error: msg });
