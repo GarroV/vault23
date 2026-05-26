@@ -1,5 +1,5 @@
 export const en = {
-  welcome_new: "Hi! I'm your personal task and notes assistant.\n\n🕐 You have a 14-day trial — all features included.\n\nUse the menu below or type /help.",
+  welcome_new: "Hi! I help you manage tasks, notes, and reminders right in this chat.\n\nJust type what you need:\n• \"Add task: call Max on Friday\"\n• \"Remember: delivery price is $50\"\n• \"Remind me tomorrow at 10am about the meeting\"\n\nOr use commands — tap / to see the full list, /help for the guide.",
   welcome_back: 'Welcome back!',
   language_current: 'Current language: English 🇬🇧',
   language_choose: 'Choose language:',
