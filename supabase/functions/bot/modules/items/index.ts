@@ -17,15 +17,9 @@ import {
 
 registerLocale(ru, en);
 
-// Legacy command aliases map to modern equivalents
-const CMD_ALIASES: Record<string, string> = {
-  '/task': '/add', '/note': '/add', '/remind': '/add',
-  '/tasks': '/list', '/notes': '/list', '/reminders': '/list',
-};
-
 export class ItemsModule implements BotModule {
   readonly name = 'items';
-  readonly commands = ['/add', '/list', '/today', '/task', '/note', '/remind', '/tasks', '/notes', '/reminders'];
+  readonly commands = ['/add', '/list', '/today'];
 
   canHandle(event: BotEvent, session: SessionState): boolean {
     if (session.state === 'item_awaiting_content' || session.state === 'item_awaiting_edit_value') return true;
@@ -45,8 +39,7 @@ export class ItemsModule implements BotModule {
   async handle(ctx: BotContext): Promise<ModuleResult> {
     const { event, session } = ctx;
 
-    // Normalize alias commands
-    const cmd = CMD_ALIASES[event.command ?? ''] ?? event.command;
+    const cmd = event.command;
 
     if (cmd === '/add')   return handleAddCommand(ctx);
     if (cmd === '/list')  return handleListCommand(ctx);

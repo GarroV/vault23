@@ -32,9 +32,6 @@ registry.register(new EmailModule());
 
 // __menu_X__ → /slash equivalents
 const MENU_TO_CMD: Record<string, string> = {
-  __menu_tasks__:       '/list',
-  __menu_notes__:       '/list',
-  __menu_reminders__:   '/list',
   __menu_contractors__: '/projects',
   __menu_stats__:       '/stats',
 };
