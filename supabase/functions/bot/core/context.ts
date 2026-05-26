@@ -67,7 +67,7 @@ export function buildContext(params: {
           ...(btn.url ? { url: btn.url } : { callback_data: btn.callbackData ?? '' }),
         }))),
       ),
-    gate: (feature: string) => gate(feature, { workspaceStatus: workspace.status, workspacePlan: workspace.plan }),
+    gate: (feature: string) => gate(feature, { workspaceStatus: workspace.status, workspacePlan: workspace.plan, trialEndsAt: workspace.trial_ends_at }),
     isGracePeriod: GRACE_STATUSES.has(workspace.status),
     db,
   };

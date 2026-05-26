@@ -187,6 +187,15 @@ export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
     return { ok: false, clearSession: true };
   }
 
+  // OP.7: one-time voice privacy notice
+  if (!ctx.session.data.voice_privacy_ack) {
+    await ctx.reply(ctx.t('voice_privacy_notice'));
+    return {
+      ok: true,
+      session: { state: 'idle', data: { ...ctx.session.data, voice_privacy_ack: true } },
+    };
+  }
+
   const fileId = ctx.event.fileId;
   const mimeType = ctx.event.mimeType ?? 'audio/ogg';
 

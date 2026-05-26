@@ -91,6 +91,15 @@ Deno.serve(async (req: Request) => {
 
     // New user or /start — record consent + send onboarding
     if (identity.isNew || event.command === '/start') {
+      const consentGateEnabled = Deno.env.get('CONSENT_GATE_ENABLED') === 'true';
+
+      if (consentGateEnabled && !identity.isNew) {
+        // Show consent screen — user must tap agree to continue
+        // Implementation: show inline button; callback 'consent_agree' records it
+        await sendMessage(telegramToken, chatId, t('consent_required'));
+        return new Response('OK', { status: 200 });
+      }
+
       await serviceDb.from('users').update({
         consent_given_at: new Date().toISOString(),
         consent_version: 'v1-2026-05-26',

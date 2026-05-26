@@ -19,4 +19,5 @@ export const en: Record<string, string> = {
   voice_btn_create_task: '✅ Create task',
   voice_btn_save_note: '📝 Save as note',
   voice_task_created: 'Task created: {title} ✅',
+  voice_privacy_notice: '🔐 Voice messages are transcribed via OpenAI Whisper. Audio is not stored — only the text transcript. Resend your voice message to continue.',
 };

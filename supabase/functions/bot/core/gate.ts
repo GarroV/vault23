@@ -4,6 +4,7 @@ import { getPlanLimits, ACTIVE_STATUSES } from './plans.ts';
 export interface GateContext {
   workspaceStatus: string;
   workspacePlan: string;
+  trialEndsAt?: string;
 }
 
 /**
@@ -12,7 +13,14 @@ export interface GateContext {
  * that create records — they call checkUsageLimit() from billing/queries.ts.
  */
 export function gate(feature: string, ctx: GateContext): GateResult {
-  const { workspaceStatus, workspacePlan } = ctx;
+  const { workspaceStatus, workspacePlan, trialEndsAt } = ctx;
+
+  // Check trial expiry in real-time (cron may lag)
+  if (workspaceStatus === 'trial' && trialEndsAt) {
+    if (new Date(trialEndsAt).getTime() < Date.now()) {
+      return { allowed: false, reason: 'workspace_suspended' };
+    }
+  }
 
   // Blocked statuses — nothing works
   if (!ACTIVE_STATUSES.has(workspaceStatus)) {

@@ -19,4 +19,5 @@ export const ru: Record<string, string> = {
   voice_btn_create_task: '✅ Создать задачу',
   voice_btn_save_note: '📝 Сохранить как заметку',
   voice_task_created: 'Задача создана: {title} ✅',
+  voice_privacy_notice: '🔐 Голосовые сообщения расшифровываются через OpenAI Whisper. Аудио не сохраняется — только текст расшифровки. Повтори голосовое, чтобы продолжить.',
 };

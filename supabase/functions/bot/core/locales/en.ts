@@ -18,4 +18,5 @@ export const en = {
   delete_data_cancelled: 'Cancelled. No data was deleted.',
   delete_data_done: 'All your data has been deleted. Thank you for using the service.',
   delete_data_wrong: 'Wrong confirmation. Type DELETE to confirm.',
+  consent_required: '📄 Please review our Terms of Service and Privacy Policy at vault23.app/terms. Send /start to confirm your agreement.',
 } as const;
