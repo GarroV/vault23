@@ -91,6 +91,9 @@ export interface BotContext {
     id: string;
     status: string;
     plan: string;
+    trial_ends_at?: string;
+    stripe_customer_id?: string;
+    subscription_current_period_end?: string;
   };
   session: SessionState;
   event: BotEvent;
@@ -98,6 +101,7 @@ export interface BotContext {
   reply: (text: string, options?: ReplyOptions) => Promise<void>;
   replyWithButtons: (text: string, buttons: InlineButton[][]) => Promise<void>;
   gate: (feature: string) => GateResult;
+  isGracePeriod: boolean;
   db: SupabaseClient;
 }
 

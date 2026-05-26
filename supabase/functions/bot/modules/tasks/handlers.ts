@@ -78,6 +78,12 @@ export async function handleTopicSelection(ctx: BotContext): Promise<ModuleResul
 }
 
 export async function handleSubtaskInit(ctx: BotContext): Promise<ModuleResult> {
+  const subtaskGate = ctx.gate('subtask_create');
+  if (!subtaskGate.allowed) {
+    await ctx.reply(ctx.t('gate_plan_limit'));
+    return { ok: false, clearSession: true };
+  }
+
   const parentTaskId = ctx.event.callbackData?.split(':')[1];
   if (!parentTaskId) {
     await ctx.reply(ctx.t('error_unexpected'));

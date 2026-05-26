@@ -25,6 +25,12 @@ async function sendViaResend(
 }
 
 export async function handleEmailCommand(ctx: BotContext): Promise<ModuleResult> {
+  const emailGate = ctx.gate('email_send');
+  if (!emailGate.allowed) {
+    await ctx.reply(ctx.t('gate_plan_limit'));
+    return { ok: false, clearSession: true };
+  }
+
   const apiKey = Deno.env.get('RESEND_API_KEY') ?? '';
   if (!apiKey) {
     await ctx.reply(ctx.t('email_not_configured'));

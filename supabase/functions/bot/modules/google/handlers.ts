@@ -32,6 +32,12 @@ function buildOAuthUrl(clientId: string, userId: string): string {
 }
 
 export async function handleConnectCommand(ctx: BotContext): Promise<ModuleResult> {
+  const calGate = ctx.gate('calendar');
+  if (!calGate.allowed) {
+    await ctx.reply(ctx.t('gate_plan_limit'));
+    return { ok: false, clearSession: true };
+  }
+
   const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
 
   if (!clientId) {

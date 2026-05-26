@@ -16,9 +16,11 @@ import { ContractorsModule } from './modules/contractors/index.ts';
 import { KbModule } from './modules/kb/index.ts';
 import { GoogleModule } from './modules/google/index.ts';
 import { EmailModule } from './modules/email/index.ts';
+import { BillingModule } from './modules/billing/index.ts';
 import type { TelegramUpdate } from './core/types.ts';
 
 const registry = new ModuleRegistry();
+registry.register(new BillingModule());
 registry.register(new TasksModule());
 registry.register(new NotesModule());
 registry.register(new AttachmentsModule());
@@ -127,6 +129,19 @@ Deno.serve(async (req: Request) => {
     ]);
 
     const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb });
+
+    // Warn user if payment is past due (on every non-/subscription command)
+    if (ctx.isGracePeriod && event.command !== '/subscription') {
+      await sendMessage(telegramToken, chatId, t('past_due_warning'));
+    }
+
+    // Global gate: block all actions if workspace is suspended or cancelled
+    const globalGate = ctx.gate('any');
+    if (!globalGate.allowed) {
+      const key = globalGate.reason === 'workspace_suspended' ? 'gate_suspended' : 'gate_cancelled';
+      await sendMessage(telegramToken, chatId, t(key));
+      return new Response('OK', { status: 200 });
+    }
 
     const module = registry.route(event, session);
 

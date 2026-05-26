@@ -180,6 +180,13 @@ export async function handleVoiceSaveAsNote(ctx: BotContext): Promise<ModuleResu
 }
 
 export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
+  const voiceGate = ctx.gate('voice');
+  if (!voiceGate.allowed) {
+    const key = voiceGate.reason === 'feature_not_in_plan' ? 'gate_plan_limit' : 'gate_suspended';
+    await ctx.reply(ctx.t(key));
+    return { ok: false, clearSession: true };
+  }
+
   const fileId = ctx.event.fileId;
   const mimeType = ctx.event.mimeType ?? 'audio/ogg';
 

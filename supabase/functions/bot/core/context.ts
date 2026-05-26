@@ -2,18 +2,22 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { BotContext, BotEvent, UserIdentity, SessionState, InlineButton, ReplyOptions } from './types.ts';
 import { createTranslator } from './i18n.ts';
 import { gate } from './gate.ts';
+import { GRACE_STATUSES } from './plans.ts';
 import { sendMessage, sendMessageWithKeyboard } from '../telegram.ts';
 
 interface WorkspaceData {
   id: string;
   status: string;
   plan: string;
+  trial_ends_at?: string;
+  stripe_customer_id?: string;
+  subscription_current_period_end?: string;
 }
 
 export async function loadWorkspace(db: SupabaseClient, workspaceId: string): Promise<WorkspaceData> {
   const { data, error } = await db
     .from('workspaces')
-    .select('id, status, plan')
+    .select('id, status, plan, trial_ends_at, stripe_customer_id, subscription_current_period_end')
     .eq('id', workspaceId)
     .single();
 
@@ -44,6 +48,9 @@ export function buildContext(params: {
       id: workspace.id,
       status: workspace.status,
       plan: workspace.plan,
+      trial_ends_at: workspace.trial_ends_at,
+      stripe_customer_id: workspace.stripe_customer_id,
+      subscription_current_period_end: workspace.subscription_current_period_end,
     },
     session,
     event,
@@ -60,7 +67,8 @@ export function buildContext(params: {
           ...(btn.url ? { url: btn.url } : { callback_data: btn.callbackData ?? '' }),
         }))),
       ),
-    gate,
+    gate: (feature: string) => gate(feature, { workspaceStatus: workspace.status, workspacePlan: workspace.plan }),
+    isGracePeriod: GRACE_STATUSES.has(workspace.status),
     db,
   };
 }
