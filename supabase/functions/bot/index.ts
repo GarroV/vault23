@@ -367,6 +367,13 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[index] unexpected runtime error', { updateId, error: message });
+    try {
+      const token = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
+      const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id;
+      if (token && chatId) {
+        await sendMessage(token, chatId, 'Что-то пошло не так. Попробуй ещё раз.');
+      }
+    } catch { /* ignore */ }
   }
 
   return new Response('OK', { status: 200 });
