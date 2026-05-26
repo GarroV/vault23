@@ -1,9 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-interface Reminder {
+interface DueItem {
   id: string;
-  user_id: string;
-  message: string | null;
+  content: string;
+  assignee: string | null;
+  workspace_id: string;
+}
+
+interface WorkspaceUser {
   auth_methods: Array<{ value: string }>;
 }
 
@@ -17,8 +21,8 @@ async function sendTelegramMessage(token: string, chatId: string, text: string):
 }
 
 Deno.serve(async (_req: Request) => {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const supabaseUrl  = Deno.env.get('SUPABASE_URL') ?? '';
+  const serviceKey   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
 
   if (!supabaseUrl || !serviceKey || !telegramToken) {
@@ -27,13 +31,16 @@ Deno.serve(async (_req: Request) => {
   }
 
   const db = createClient(supabaseUrl, serviceKey);
+  const now = new Date().toISOString();
 
-  const { data: reminders, error } = await db
-    .from('reminders')
-    .select('id, user_id, message, auth_methods!inner(value)')
-    .eq('status', 'pending')
-    .lte('remind_at', new Date().toISOString())
-    .eq('auth_methods.type', 'telegram')
+  // Find items whose due_at has passed and haven't been notified yet
+  const { data: items, error } = await db
+    .from('items')
+    .select('id, content, assignee, workspace_id')
+    .eq('done', false)
+    .is('deleted_at', null)
+    .is('notified_at', null)
+    .lte('due_at', now)
     .limit(50);
 
   if (error) {
@@ -41,24 +48,33 @@ Deno.serve(async (_req: Request) => {
     return new Response('OK', { status: 200 });
   }
 
-  const rows = (reminders ?? []) as unknown as Reminder[];
-  console.log('[remind] processing reminders', { count: rows.length });
+  const dueItems = (items ?? []) as DueItem[];
+  console.log('[remind] processing due items', { count: dueItems.length });
 
-  for (const reminder of rows) {
-    const chatId = reminder.auth_methods[0]?.value;
-    if (!chatId) {
-      console.error('[remind] no telegram_id for user', { userId: reminder.user_id });
-      continue;
+  for (const item of dueItems) {
+    // Find all telegram users in this workspace
+    const { data: users } = await db
+      .from('users')
+      .select('auth_methods!inner(value)')
+      .eq('workspace_id', item.workspace_id)
+      .eq('auth_methods.type', 'telegram');
+
+    const workspaceUsers = (users ?? []) as WorkspaceUser[];
+
+    for (const user of workspaceUsers) {
+      const chatId = user.auth_methods[0]?.value;
+      if (!chatId) continue;
+      try {
+        const assigneePart = item.assignee ? ` → ${item.assignee}` : '';
+        await sendTelegramMessage(telegramToken, chatId, `⏰ ${item.content}${assigneePart}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[remind] failed to send', { itemId: item.id, error: msg });
+      }
     }
 
-    try {
-      const text = reminder.message ?? '⏰ Напоминание!';
-      await sendTelegramMessage(telegramToken, chatId, `⏰ ${text}`);
-      await db.from('reminders').update({ status: 'sent' }).eq('id', reminder.id);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[remind] failed to send', { reminderId: reminder.id, error: msg });
-    }
+    // Mark as notified regardless of send success to avoid spam
+    await db.from('items').update({ notified_at: now }).eq('id', item.id);
   }
 
   return new Response('OK', { status: 200 });

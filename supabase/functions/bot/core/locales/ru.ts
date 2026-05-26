@@ -6,7 +6,7 @@ export const ru = {
   language_changed: 'Язык изменён на Русский 🇷🇺',
   error_unexpected: 'Что-то пошло не так. Попробуй ещё раз.',
   cmd_unknown: 'Не понял команду. Нажми / или напиши /help.',
-  stats_summary: '📊 Статистика:\n• Открытых задач: {tasks}\n• Заметок: {notes}\n• Напоминаний: {reminders}',
+  stats_summary: '📊 Статистика:\n• Открытых дел: {tasks}\n• С дедлайном: {reminders}',
   gate_suspended: '⛔ Доступ приостановлен из-за неоплаченной подписки. Обнови способ оплаты через /subscription.',
   gate_cancelled: '⛔ Подписка отменена. Оформи новую через /subscription.',
   gate_plan_limit: '⚠️ Эта функция недоступна на твоём тарифе. Перейди на более высокий план через /subscription.',
@@ -169,10 +169,9 @@ Email
 Полное и необратимое удаление воркспейса: задачи, заметки, напоминания, проекты, база знаний — всё. Потребует явное подтверждение.`,
 
   // NLP responses
-  nlp_task_created: '✅ Задача создана: {title}',
-  nlp_task_created_deadline: '✅ Задача создана: {title}\n📅 Дедлайн: {date}',
-  nlp_note_saved: '📝 Заметка сохранена.',
-  nlp_reminder_set: '⏰ Напомню {time}',
+  nlp_item_created: '✅ Добавлено: {content}',
+  nlp_item_created_due: '✅ Добавлено: {content}\n📅 {date}',
+  nlp_item_created_due_assignee: '✅ Добавлено: {content}\n📅 {date} → {assignee}',
   nlp_reminder_past: '⚠️ Это время уже прошло. Укажи время в будущем.',
   nlp_search_empty: '🔍 Ничего не найдено по запросу «{query}».',
   nlp_search_results: '🔍 Результаты по «{query}»:',

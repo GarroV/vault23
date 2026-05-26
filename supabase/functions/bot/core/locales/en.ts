@@ -6,7 +6,7 @@ export const en = {
   language_changed: 'Language changed to English 🇬🇧',
   error_unexpected: 'Something went wrong. Please try again.',
   cmd_unknown: 'Unknown command. Use the menu or type /help.',
-  stats_summary: '📊 Stats:\n• Open tasks: {tasks}\n• Notes: {notes}\n• Pending reminders: {reminders}',
+  stats_summary: '📊 Stats:\n• Open items: {tasks}\n• With deadline: {reminders}',
   gate_suspended: '⛔ Your account is suspended due to a failed payment. Update your payment method via /subscription.',
   gate_cancelled: '⛔ Your subscription has been cancelled. Subscribe again via /subscription.',
   gate_plan_limit: '⚠️ This feature is not available on your current plan. Upgrade via /subscription.',
@@ -169,10 +169,9 @@ Delete data — /deletedata
 Complete and irreversible deletion of your workspace: tasks, notes, reminders, projects, knowledge base — everything. Requires explicit confirmation.`,
 
   // NLP responses
-  nlp_task_created: '✅ Task created: {title}',
-  nlp_task_created_deadline: '✅ Task created: {title}\n📅 Deadline: {date}',
-  nlp_note_saved: '📝 Note saved.',
-  nlp_reminder_set: '⏰ I\'ll remind you {time}',
+  nlp_item_created: '✅ Added: {content}',
+  nlp_item_created_due: '✅ Added: {content}\n📅 {date}',
+  nlp_item_created_due_assignee: '✅ Added: {content}\n📅 {date} → {assignee}',
   nlp_reminder_past: '⚠️ That time has already passed. Please specify a future time.',
   nlp_search_empty: '🔍 Nothing found for "{query}".',
   nlp_search_results: '🔍 Results for "{query}":',

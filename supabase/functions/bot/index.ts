@@ -10,10 +10,8 @@ import { loadWorkspace, buildContext, loadLocaleOverrides } from './core/context
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
 import { listConfigs } from './core/config.ts';
 import { DEFAULT_COMMANDS, ADMIN_COMMANDS } from './core/commands.ts';
-import { TasksModule } from './modules/tasks/index.ts';
-import { NotesModule } from './modules/notes/index.ts';
+import { ItemsModule } from './modules/items/index.ts';
 import { AttachmentsModule } from './modules/attachments/index.ts';
-import { RemindersModule } from './modules/reminders/index.ts';
 import { ContractorsModule } from './modules/contractors/index.ts';
 import { KbModule } from './modules/kb/index.ts';
 import { GoogleModule } from './modules/google/index.ts';
@@ -25,20 +23,18 @@ import type { TelegramUpdate, BotEvent } from './core/types.ts';
 const registry = new ModuleRegistry();
 registry.register(new AdminModule());
 registry.register(new BillingModule());
-registry.register(new TasksModule());
-registry.register(new NotesModule());
+registry.register(new ItemsModule());
 registry.register(new AttachmentsModule());
-registry.register(new RemindersModule());
 registry.register(new ContractorsModule());
 registry.register(new KbModule());
 registry.register(new GoogleModule());
 registry.register(new EmailModule());
 
-// __menu_X__ → /slash equivalents (from reply-keyboard buttons, kept for compatibility)
+// __menu_X__ → /slash equivalents
 const MENU_TO_CMD: Record<string, string> = {
-  __menu_tasks__:       '/tasks',
-  __menu_notes__:       '/notes',
-  __menu_reminders__:   '/reminders',
+  __menu_tasks__:       '/list',
+  __menu_notes__:       '/list',
+  __menu_reminders__:   '/list',
   __menu_contractors__: '/projects',
   __menu_stats__:       '/stats',
 };
@@ -171,15 +167,14 @@ Deno.serve(async (req: Request) => {
     // ── /stats ───────────────────────────────────────────────────────────────
     if (event.command === '/stats') {
       const wid = identity.workspaceId;
-      const [taskRes, noteRes, reminderRes] = await Promise.all([
-        serviceDb.from('tasks').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null).in('status', ['open', 'in_progress']),
-        serviceDb.from('notes').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null),
-        serviceDb.from('reminders').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).eq('status', 'pending'),
+      const [openRes, dueRes] = await Promise.all([
+        serviceDb.from('items').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null).eq('done', false),
+        serviceDb.from('items').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).is('deleted_at', null).eq('done', false).not('due_at', 'is', null),
       ]);
       await sendMessage(telegramToken, chatId, t('stats_summary', {
-        tasks: taskRes.count ?? 0,
-        notes: noteRes.count ?? 0,
-        reminders: reminderRes.count ?? 0,
+        tasks: openRes.count ?? 0,
+        notes: 0,
+        reminders: dueRes.count ?? 0,
       }));
       return new Response('OK', { status: 200 });
     }
@@ -244,17 +239,16 @@ Deno.serve(async (req: Request) => {
       }
 
       if (isAdmin && cb === 'm_admin_stats') {
-        const [ws, usersRes, tasksRes, notesRes] = await Promise.all([
+        const [ws, usersRes, itemsRes] = await Promise.all([
           ctx.db.from('workspaces').select('id', { count: 'exact', head: true }),
           ctx.db.from('users').select('id', { count: 'exact', head: true }),
-          ctx.db.from('tasks').select('id', { count: 'exact', head: true }),
-          ctx.db.from('notes').select('id', { count: 'exact', head: true }),
+          ctx.db.from('items').select('id', { count: 'exact', head: true }),
         ]);
         await ctx.reply(t('admin_stats_msg', {
           workspaces: ws.count ?? 0,
           users:      usersRes.count ?? 0,
-          tasks:      tasksRes.count ?? 0,
-          notes:      notesRes.count ?? 0,
+          tasks:      itemsRes.count ?? 0,
+          notes:      0,
         }));
         await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
         return new Response('OK', { status: 200 });
@@ -325,84 +319,37 @@ Deno.serve(async (req: Request) => {
       const { parseNaturalLanguage } = await import('./core/nlp.ts');
       const nlp = await parseNaturalLanguage(ctx.db, event.text, new Date().toISOString());
 
-      if (nlp.intent === 'create_task') {
-        const { getVisibleTopics, createTask } = await import('./modules/tasks/queries.ts');
-        const topics = await getVisibleTopics(ctx.db, ctx.user.workspaceId);
-        const topicId = topics[0]?.id;
-        if (!topicId) { await ctx.reply(t('cmd_unknown')); }
-        else {
-          const taskId = await createTask(ctx.db, ctx.user.workspaceId, nlp.title, topicId, undefined, nlp.due_at, nlp.recurrence);
-          if (nlp.due_at) {
-            const remindAt = new Date(nlp.due_at);
-            if (!isNaN(remindAt.getTime()) && remindAt > new Date()) {
-              const { createReminder } = await import('./modules/reminders/queries.ts');
-              await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, nlp.title, remindAt, taskId).catch(() => {});
-            }
-            const date = remindAt.toLocaleDateString(
-              identity.language === 'ru' ? 'ru-RU' : 'en-US',
-              { day: 'numeric', month: 'short', timeZone: 'UTC' },
-            );
-            await ctx.reply(t('nlp_task_created_deadline', { title: nlp.title, date }));
-          } else {
-            await ctx.reply(t('nlp_task_created', { title: nlp.title }));
-          }
-        }
-
-      } else if (nlp.intent === 'create_note') {
-        const { createNote } = await import('./modules/notes/queries.ts');
-        await createNote(ctx.db, ctx.user.workspaceId, nlp.content);
-        await ctx.reply(t('nlp_note_saved'));
-
-      } else if (nlp.intent === 'set_reminder') {
-        const remindAt = new Date(nlp.remind_at);
-        if (isNaN(remindAt.getTime()) || remindAt <= new Date()) {
-          await ctx.reply(t('nlp_reminder_past'));
-        } else {
-          const { createReminder } = await import('./modules/reminders/queries.ts');
-          await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, nlp.text, remindAt);
-          const timeStr = remindAt.toLocaleString(
-            identity.language === 'ru' ? 'ru-RU' : 'en-US',
-            { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' },
+      if (nlp.intent === 'create_item') {
+        const { createItem } = await import('./modules/items/queries.ts');
+        const dueAt = nlp.due_at && new Date(nlp.due_at) > new Date() ? nlp.due_at : null;
+        await createItem(ctx.db, ctx.user.workspaceId, nlp.content, dueAt, nlp.assignee, null, null, nlp.recurrence);
+        const lang = identity.language;
+        if (dueAt) {
+          const dateStr = new Date(dueAt).toLocaleString(
+            lang === 'ru' ? 'ru-RU' : 'en-US',
+            { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' },
           );
-          await ctx.reply(t('nlp_reminder_set', { time: timeStr }));
+          const key = nlp.assignee ? 'nlp_item_created_due_assignee' : 'nlp_item_created_due';
+          await ctx.reply(t(key, { content: nlp.content, date: dateStr, assignee: nlp.assignee ?? '' }));
+        } else {
+          await ctx.reply(t('nlp_item_created', { content: nlp.content }));
         }
 
-      } else if (nlp.intent === 'list_tasks') {
-        const { handleTaskListCommand } = await import('./modules/tasks/handlers.ts');
-        await handleTaskListCommand(ctx);
-
-      } else if (nlp.intent === 'list_notes') {
-        const { handleNotesListCommand } = await import('./modules/notes/handlers.ts');
-        await handleNotesListCommand(ctx);
+      } else if (nlp.intent === 'list_items') {
+        const { handleListCommand } = await import('./modules/items/handlers.ts');
+        await handleListCommand(ctx);
 
       } else if (nlp.intent === 'search') {
-        const query = nlp.query;
-        const [taskRes, noteRes] = await Promise.all([
-          ctx.db.from('tasks').select('title')
-            .eq('workspace_id', ctx.user.workspaceId).is('deleted_at', null)
-            .in('status', ['open', 'in_progress'])
-            .textSearch('title', query, { config: 'russian' }).limit(5),
-          ctx.db.from('notes').select('content')
-            .eq('workspace_id', ctx.user.workspaceId).is('deleted_at', null)
-            .textSearch('content', query, { config: 'russian' }).limit(5),
-        ]);
-        const tasks = (taskRes.data ?? []) as Array<{ title: string }>;
-        const notes = (noteRes.data ?? []) as Array<{ content: string }>;
-        if (tasks.length === 0 && notes.length === 0) {
-          await ctx.reply(t('nlp_search_empty', { query }));
+        const { searchItems } = await import('./modules/items/queries.ts');
+        const results = await searchItems(ctx.db, ctx.user.workspaceId, nlp.query);
+        if (results.length === 0) {
+          await ctx.reply(t('nlp_search_empty', { query: nlp.query }));
         } else {
-          const lines: string[] = [t('nlp_search_results', { query })];
-          if (tasks.length > 0) {
-            lines.push('\n📋 ' + (identity.language === 'ru' ? 'Задачи:' : 'Tasks:'));
-            tasks.forEach(tsk => lines.push(`• ${tsk.title}`));
-          }
-          if (notes.length > 0) {
-            lines.push('\n📝 ' + (identity.language === 'ru' ? 'Заметки:' : 'Notes:'));
-            notes.forEach(nt => {
-              const preview = nt.content.length > 80 ? `${nt.content.slice(0, 80)}…` : nt.content;
-              lines.push(`• ${preview}`);
-            });
-          }
+          const lines = [t('nlp_search_results', { query: nlp.query })];
+          results.forEach(it => {
+            const due = it.due_at ? ` 📅 ${new Date(it.due_at).toLocaleDateString(identity.language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : '';
+            lines.push(`• ${it.content}${due}`);
+          });
           await ctx.reply(lines.join('\n'));
         }
 

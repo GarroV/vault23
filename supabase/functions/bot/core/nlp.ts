@@ -9,11 +9,8 @@ export interface NlpRecurrence {
 }
 
 export type NlpResult =
-  | { intent: 'create_task'; title: string; due_at: string | null; recurrence?: NlpRecurrence | null }
-  | { intent: 'create_note'; content: string }
-  | { intent: 'set_reminder'; text: string; remind_at: string }
-  | { intent: 'list_tasks' }
-  | { intent: 'list_notes' }
+  | { intent: 'create_item'; content: string; due_at: string | null; assignee: string | null; recurrence?: NlpRecurrence | null }
+  | { intent: 'list_items' }
   | { intent: 'search'; query: string }
   | { intent: 'kb_ask'; question: string }
   | { intent: 'unknown' };
@@ -66,15 +63,12 @@ export async function parseNaturalLanguage(
   const apiKey = await getConfig(db, 'OPENAI_API_KEY');
   if (!apiKey) return { intent: 'unknown' };
 
-  const system = `You are an intent parser for a task-management bot. Current UTC time: ${nowIso}.
+  const system = `You are an intent parser for a personal assistant bot. Current UTC time: ${nowIso}.
 Classify the user message and extract parameters. Return JSON only — no markdown, no explanation.
 
 Return exactly one of:
-{"intent":"create_task","title":"<concise task title>","due_at":"<ISO 8601 UTC datetime or null>","recurrence":<recurrence or null>}
-{"intent":"create_note","content":"<text to save>"}
-{"intent":"set_reminder","text":"<reminder message>","remind_at":"<ISO 8601 UTC datetime>"}
-{"intent":"list_tasks"}
-{"intent":"list_notes"}
+{"intent":"create_item","content":"<the text to save>","due_at":"<ISO 8601 UTC or null>","assignee":"<person name or null>","recurrence":<recurrence or null>}
+{"intent":"list_items"}
 {"intent":"search","query":"<search terms>"}
 {"intent":"kb_ask","question":"<the question>"}
 {"intent":"unknown"}
@@ -85,15 +79,12 @@ Recurrence format (use null if not recurring):
 {"type":"daily"}                  — every day
 {"type":"interval","days":14}     — every 14 days
 
-Classification rules:
-- create_task: user wants to create/add a task. Resolve relative dates. Detect recurrence patterns.
-- create_note: user saves information, thoughts, prices, contacts — words like "save", "note", "записать", "запомни".
-- set_reminder: user wants a timed notification. Compute remind_at from now.
-- list_tasks: user asks to see/show tasks. "покажи задачи", "what are my tasks".
-- list_notes: user asks to see notes. "покажи заметки", "show my notes".
-- search: user asks to find/search something specific. "найди задачу про максима".
-- kb_ask: user asks a question expecting an answer from the knowledge base. "как оформить акт?".
-- unknown: greetings, questions about the bot itself, unrecognizable input.`;
+Rules:
+- create_item: anything the user wants to save, remember, do, or be reminded about. Tasks, notes, reminders, ideas — all become items. Extract due_at for any deadline or time mention. Extract assignee if a person is mentioned as the doer (e.g. "→ Ivan", "поручить Максу", "Ivan should do").
+- list_items: user wants to see their list. "покажи задачи", "what do I have", "show my list".
+- search: user wants to find something specific. "найди задачу про максима".
+- kb_ask: user asks a question expecting an answer from the knowledge base.
+- unknown: greetings, bot questions, unrecognizable input.`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
