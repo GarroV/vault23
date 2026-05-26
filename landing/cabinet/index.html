@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault23 — Cabinet</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --border:   #334155;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --accent:   #3b82f6;
+      --green:    #22c55e;
+      --orange:   #f97316;
+      --red:      #ef4444;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+    header .user-info { display: flex; align-items: center; gap: .75rem; font-size: .875rem; color: var(--muted); }
+    header .user-info strong { color: var(--text); }
+    .btn-logout {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: .375rem .75rem; border-radius: .5rem; cursor: pointer; font-size: .8rem;
+    }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* Login screen */
+    #login-screen {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 80vh; gap: 1.5rem; text-align: center;
+    }
+    #login-screen h1 { font-size: 2rem; }
+    #login-screen p { color: var(--muted); max-width: 360px; line-height: 1.6; }
+    #login-screen .error-msg {
+      color: var(--red); font-size: .875rem; background: rgba(239,68,68,.1);
+      padding: .75rem 1rem; border-radius: .5rem; border: 1px solid rgba(239,68,68,.3);
+    }
+
+    /* Tab bar */
+    .tabs { display: flex; gap: .5rem; margin-bottom: 1.5rem; }
+    .tab {
+      padding: .5rem 1rem; border-radius: .5rem; cursor: pointer; font-size: .875rem;
+      border: 1px solid transparent; color: var(--muted); background: none;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--surface); border-color: var(--border); color: var(--text); }
+
+    /* Cards */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: .75rem; padding: 1.25rem;
+    }
+    .card-title { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: .75rem; }
+    .card-value { font-size: 2rem; font-weight: 700; }
+    .card-sub { font-size: .8rem; color: var(--muted); margin-top: .25rem; }
+
+    /* Status badge */
+    .badge {
+      display: inline-block; padding: .2rem .6rem; border-radius: 9999px;
+      font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .badge-trial    { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .badge-active   { background: rgba(34,197,94,.15);  color: #4ade80; }
+    .badge-past_due { background: rgba(249,115,22,.15); color: #fb923c; }
+    .badge-suspended, .badge-cancelled { background: rgba(239,68,68,.15); color: #f87171; }
+
+    /* Progress bar */
+    .progress-wrap { margin-top: .75rem; }
+    .progress-label { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: .35rem; }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 9999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 9999px; transition: width .4s; }
+    .progress-fill.warn { background: var(--orange); }
+    .progress-fill.danger { background: var(--red); }
+
+    /* Subscription detail */
+    .sub-detail { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+    .sub-row { display: flex; justify-content: space-between; font-size: .875rem; }
+    .sub-row .label { color: var(--muted); }
+
+    /* Config table */
+    .config-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .config-table th {
+      text-align: left; color: var(--muted); font-weight: 500;
+      padding: .5rem .75rem; border-bottom: 1px solid var(--border);
+      font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .config-table td { padding: .625rem .75rem; border-bottom: 1px solid rgba(51,65,85,.5); }
+    .config-table tr:last-child td { border-bottom: none; }
+    .config-key { font-family: monospace; font-size: .8rem; }
+    .set-icon   { color: var(--green); }
+    .unset-icon { color: var(--muted); }
+
+    /* Edit config form */
+    .config-edit { display: flex; gap: .5rem; margin-top: 1rem; }
+    .config-edit select, .config-edit input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: .5rem .75rem; border-radius: .5rem; font-size: .875rem;
+    }
+    .config-edit select { min-width: 220px; }
+    .config-edit input  { flex: 1; }
+    .btn-save {
+      background: var(--accent); color: #fff; border: none;
+      padding: .5rem 1rem; border-radius: .5rem; cursor: pointer; font-size: .875rem; font-weight: 600;
+    }
+    .btn-save:hover { opacity: .9; }
+    .config-msg { margin-top: .5rem; font-size: .8rem; }
+    .config-msg.ok  { color: var(--green); }
+    .config-msg.err { color: var(--red); }
+
+    /* Platform stats mini-grid */
+    .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; }
+    .stat-box {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: .5rem; padding: 1rem; text-align: center;
+    }
+    .stat-box .num  { font-size: 1.75rem; font-weight: 700; }
+    .stat-box .lbl  { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+
+    /* Status breakdown */
+    .status-list { margin-top: 1rem; display: flex; flex-direction: column; gap: .4rem; }
+    .status-row  { display: flex; justify-content: space-between; align-items: center; font-size: .875rem; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block; width: 1.25rem; height: 1.25rem;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+    .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────── -->
+<header id="app-header" class="hidden">
+  <span class="logo">Vault23</span>
+  <div class="user-info">
+    <span>Signed in as <strong id="header-name"></strong></span>
+    <button class="btn-logout" onclick="logout()">Sign out</button>
+  </div>
+</header>
+
+<!-- ─── Login screen ──────────────────────────────── -->
+<div id="login-screen">
+  <h1>Vault23 Cabinet</h1>
+  <p>Sign in with the same Telegram account you use in the bot.</p>
+  <div id="tg-widget-wrap"></div>
+  <div id="login-error" class="error-msg hidden"></div>
+</div>
+
+<!-- ─── Main app ──────────────────────────────────── -->
+<main id="app" class="hidden">
+  <div class="tabs" id="tab-bar">
+    <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" id="tab-admin" data-tab="admin" onclick="switchTab('admin')" style="display:none">
+      Admin ⚙️
+    </button>
+  </div>
+
+  <!-- Overview tab -->
+  <div id="tab-overview">
+    <div class="grid" id="overview-grid"></div>
+  </div>
+
+  <!-- Admin tab -->
+  <div id="tab-admin-content" class="hidden">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+      <!-- Platform stats -->
+      <div class="card">
+        <div class="card-title">Platform Stats</div>
+        <div class="stat-grid" id="platform-stats-grid"></div>
+        <div class="status-list" id="status-list"></div>
+      </div>
+
+      <!-- Config keys -->
+      <div class="card">
+        <div class="card-title">Configuration</div>
+        <table class="config-table" id="config-table">
+          <thead><tr><th>Key</th><th>Status</th><th>Updated</th></tr></thead>
+          <tbody id="config-tbody"></tbody>
+        </table>
+
+        <div class="config-edit">
+          <select id="config-key-select"></select>
+          <input type="password" id="config-value-input" placeholder="Value" autocomplete="off" />
+          <button class="btn-save" onclick="saveConfig()">Save</button>
+        </div>
+        <div id="config-msg" class="config-msg hidden"></div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+const API = 'https://orrlwzsvrliipcigmzfi.supabase.co/functions/v1';
+let authToken = localStorage.getItem('vault23_token');
+let currentTab = 'overview';
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+
+async function boot() {
+  if (authToken) {
+    try {
+      await loadDashboard();
+    } catch {
+      logout();
+    }
+  } else {
+    await mountTelegramWidget();
+  }
+}
+
+// ── Telegram Login Widget ───────────────────────────────────────────────────
+
+async function mountTelegramWidget() {
+  const res = await fetch(`${API}/web-auth/public-config`);
+  const { botUsername } = await res.json();
+
+  if (!botUsername) {
+    showLoginError('Bot is not configured yet. Please contact the administrator.');
+    return;
+  }
+
+  window.onTelegramAuth = async function(user) {
+    try {
+      const r = await fetch(`${API}/web-auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        if (data.error === 'not_registered') {
+          showLoginError('You haven\'t started the bot yet. Open Telegram and send /start to @' + botUsername + ' first.');
+        } else {
+          showLoginError('Authentication failed. Please try again.');
+        }
+        return;
+      }
+      authToken = data.token;
+      localStorage.setItem('vault23_token', authToken);
+      await loadDashboard();
+    } catch {
+      showLoginError('Network error. Please try again.');
+    }
+  };
+
+  const script = document.createElement('script');
+  script.src = 'https://telegram.org/js/telegram-widget.js?22';
+  script.setAttribute('data-telegram-login', botUsername);
+  script.setAttribute('data-size', 'large');
+  script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+  script.setAttribute('data-request-access', 'write');
+  script.async = true;
+  document.getElementById('tg-widget-wrap').appendChild(script);
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
+
+function jwtPayload(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+  } catch { return {}; }
+}
+
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(`${API}/cabinet-api${path}`, {
+    ...opts,
+    headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+  });
+  if (r.status === 401) { logout(); throw new Error('unauthorized'); }
+  return r.json();
+}
+
+async function loadDashboard() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-header').classList.remove('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  const claims = jwtPayload(authToken);
+  document.getElementById('header-name').textContent = claims.telegramId ? `tg:${claims.telegramId}` : 'User';
+
+  const data = await apiFetch('/me');
+  renderOverview(data);
+
+  if (data.isAdmin) {
+    document.getElementById('tab-admin').style.display = '';
+    loadAdminTab();
+  }
+}
+
+// ── Overview ─────────────────────────────────────────────────────────────────
+
+function statusBadge(status) {
+  return `<span class="badge badge-${status}">${status}</span>`;
+}
+
+function progressBar(value, max, label) {
+  if (max === null || max === undefined) return '';
+  const pct = max === Infinity || max > 9999 ? 0 : Math.min(100, Math.round(value / max * 100));
+  const cls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '';
+  const maxLabel = (max === null || max > 9999) ? '∞' : max;
+  return `
+    <div class="progress-wrap">
+      <div class="progress-label"><span>${label}</span><span>${value} / ${maxLabel}</span></div>
+      <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+}
+
+function renderOverview(data) {
+  const { workspace: ws, usage, stats } = data;
+  const grid = document.getElementById('overview-grid');
+
+  // Subscription card
+  let subContent = `
+    <div class="sub-detail">
+      <div class="sub-row"><span class="label">Plan</span><span>${ws.plan.charAt(0).toUpperCase() + ws.plan.slice(1)}</span></div>
+      <div class="sub-row"><span class="label">Status</span><span>${statusBadge(ws.status)}</span></div>`;
+
+  if (ws.status === 'trial' && ws.trialDaysLeft !== null) {
+    subContent += `<div class="sub-row"><span class="label">Trial ends</span><span>${ws.trialDaysLeft} day(s) left</span></div>`;
+  }
+  if (ws.periodEnd) {
+    const d = new Date(ws.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    subContent += `<div class="sub-row"><span class="label">Period end</span><span>${d}</span></div>`;
+  }
+  subContent += `</div>`;
+
+  // Usage card
+  let usageContent = progressBar(usage.voiceCount, usage.maxVoice, 'Voice messages');
+  usageContent += progressBar(usage.emailCount, usage.maxEmail, 'Emails sent');
+  if (!usageContent.trim()) usageContent = '<span style="color:var(--muted);font-size:.875rem">No usage limits on this plan.</span>';
+
+  grid.innerHTML = `
+    <div class="card">
+      <div class="card-title">Subscription</div>
+      ${subContent}
+    </div>
+    <div class="card">
+      <div class="card-title">Usage this month</div>
+      ${usageContent}
+    </div>
+    <div class="card">
+      <div class="card-title">Tasks</div>
+      <div class="card-value">${stats.tasks}</div>
+      <div class="card-sub">open tasks</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Notes</div>
+      <div class="card-value">${stats.notes}</div>
+      <div class="card-sub">total notes</div>
+    </div>`;
+}
+
+// ── Admin tab ────────────────────────────────────────────────────────────────
+
+async function loadAdminTab() {
+  const [platformData, configData] = await Promise.all([
+    apiFetch('/platform-stats'),
+    apiFetch('/configs'),
+  ]);
+  renderPlatformStats(platformData);
+  renderConfigs(configData.configs);
+}
+
+function renderPlatformStats(data) {
+  document.getElementById('platform-stats-grid').innerHTML = `
+    <div class="stat-box"><div class="num">${data.workspaces}</div><div class="lbl">Workspaces</div></div>
+    <div class="stat-box"><div class="num">${data.users}</div><div class="lbl">Users</div></div>
+    <div class="stat-box"><div class="num">${data.tasks}</div><div class="lbl">Tasks</div></div>
+    <div class="stat-box"><div class="num">${data.notes}</div><div class="lbl">Notes</div></div>`;
+
+  const statusColors = { trial:'#60a5fa', active:'#4ade80', past_due:'#fb923c', suspended:'#f87171', cancelled:'#f87171', free:'#94a3b8' };
+  const rows = Object.entries(data.byStatus || {}).map(([s, n]) =>
+    `<div class="status-row"><span style="color:${statusColors[s]||'#94a3b8'}">${s}</span><strong>${n}</strong></div>`
+  ).join('');
+  document.getElementById('status-list').innerHTML = rows;
+}
+
+function renderConfigs(configs) {
+  const tbody = document.getElementById('config-tbody');
+  tbody.innerHTML = configs.map(c => `
+    <tr>
+      <td class="config-key">${c.key}</td>
+      <td>${c.set ? '<span class="set-icon">✓ Set</span>' : '<span class="unset-icon">— Not set</span>'}</td>
+      <td style="color:var(--muted);font-size:.75rem">${c.updated_at ? c.updated_at.slice(0,10) : '—'}</td>
+    </tr>`).join('');
+
+  const sel = document.getElementById('config-key-select');
+  sel.innerHTML = configs.map(c => `<option value="${c.key}">${c.key}</option>`).join('');
+}
+
+async function saveConfig() {
+  const key = document.getElementById('config-key-select').value;
+  const value = document.getElementById('config-value-input').value.trim();
+  const msgEl = document.getElementById('config-msg');
+
+  if (!value) { showConfigMsg('Value cannot be empty.', false); return; }
+
+  try {
+    const data = await apiFetch('/configs', {
+      method: 'POST',
+      body: JSON.stringify({ key, value }),
+    });
+    if (data.ok) {
+      showConfigMsg(`✓ ${key} saved (…${data.masked.slice(-4)})`, true);
+      document.getElementById('config-value-input').value = '';
+      const configData = await apiFetch('/configs');
+      renderConfigs(configData.configs);
+    } else {
+      showConfigMsg(`Error: ${data.error}`, false);
+    }
+  } catch {
+    showConfigMsg('Network error.', false);
+  }
+}
+
+function showConfigMsg(msg, ok) {
+  const el = document.getElementById('config-msg');
+  el.textContent = msg;
+  el.className = `config-msg ${ok ? 'ok' : 'err'}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
+  document.getElementById('tab-admin-content').classList.toggle('hidden', tab !== 'admin');
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+function logout() {
+  localStorage.removeItem('vault23_token');
+  authToken = null;
+  location.reload();
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -18,6 +18,7 @@ export const CONFIGURABLE_KEYS = new Set([
   'STRIPE_WEBHOOK_SECRET',
   'OPENAI_API_KEY',
   'ADMIN_SECRET',
+  'TELEGRAM_BOT_USERNAME',
 ]);
 
 const FORBIDDEN_KEYS = new Set([
