@@ -4,7 +4,7 @@ interface Reminder {
   id: string;
   user_id: string;
   message: string | null;
-  auth_methods: Array<{ provider_id: string }>;
+  auth_methods: Array<{ value: string }>;
 }
 
 async function sendTelegramMessage(token: string, chatId: string, text: string): Promise<void> {
@@ -30,10 +30,10 @@ Deno.serve(async (_req: Request) => {
 
   const { data: reminders, error } = await db
     .from('reminders')
-    .select('id, user_id, message, auth_methods!inner(provider_id)')
+    .select('id, user_id, message, auth_methods!inner(value)')
     .eq('status', 'pending')
     .lte('remind_at', new Date().toISOString())
-    .eq('auth_methods.provider', 'telegram')
+    .eq('auth_methods.type', 'telegram')
     .limit(50);
 
   if (error) {
@@ -45,7 +45,7 @@ Deno.serve(async (_req: Request) => {
   console.log('[remind] processing reminders', { count: rows.length });
 
   for (const reminder of rows) {
-    const chatId = reminder.auth_methods[0]?.provider_id;
+    const chatId = reminder.auth_methods[0]?.value;
     if (!chatId) {
       console.error('[remind] no telegram_id for user', { userId: reminder.user_id });
       continue;
