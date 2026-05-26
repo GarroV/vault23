@@ -4,6 +4,11 @@ export interface InlineKeyboardButton {
   url?: string;
 }
 
+export interface BotCommand {
+  command: string;
+  description: string;
+}
+
 async function post(token: string, method: string, body: unknown): Promise<void> {
   const url = `https://api.telegram.org/bot${token}/${method}`;
   const response = await fetch(url, {
@@ -51,21 +56,31 @@ export async function sendMessageWithKeyboard(
   });
 }
 
-export async function sendMessageWithReplyKeyboard(
+/** Removes any persistent reply keyboard currently shown to the user. */
+export async function removeReplyKeyboard(
   token: string,
   chatId: number,
   text: string,
-  keyboard: string[][],
 ): Promise<void> {
   await postWithRetry(token, 'sendMessage', {
     chat_id: chatId,
     text,
-    reply_markup: {
-      keyboard: keyboard.map(row => row.map(label => ({ text: label }))),
-      resize_keyboard: true,
-      persistent: true,
-    },
+    reply_markup: { remove_keyboard: true },
   });
+}
+
+/**
+ * Sets the bot command list visible in Telegram's "/" dropdown.
+ * scope defaults to all private chats. Pass { type: 'chat', chat_id } for per-user overrides.
+ */
+export async function setMyCommands(
+  token: string,
+  commands: BotCommand[],
+  scope?: Record<string, unknown>,
+): Promise<void> {
+  const body: Record<string, unknown> = { commands };
+  if (scope) body.scope = scope;
+  await post(token, 'setMyCommands', body);
 }
 
 export async function answerCallbackQuery(token: string, callbackQueryId: string): Promise<void> {

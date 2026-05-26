@@ -3,8 +3,7 @@ import type { BotContext, BotEvent, UserIdentity, SessionState, InlineButton, Re
 import { createTranslator } from './i18n.ts';
 import { gate } from './gate.ts';
 import { GRACE_STATUSES } from './plans.ts';
-import { sendMessage, sendMessageWithKeyboard, sendMessageWithReplyKeyboard } from '../telegram.ts';
-import { buildMainKeyboard } from './menu.ts';
+import { sendMessage, sendMessageWithKeyboard } from '../telegram.ts';
 
 interface WorkspaceData {
   id: string;
@@ -81,8 +80,7 @@ export function buildContext(params: {
           ...(btn.url ? { url: btn.url } : { callback_data: btn.callbackData ?? '' }),
         }))),
       ),
-    showMenu: (text: string) =>
-      sendMessageWithReplyKeyboard(telegramToken, chatId, text, buildMainKeyboard(identity.language, isAdmin)),
+    showMenu: (_text: string) => Promise.resolve(),
     gate: (feature: string) => gate(feature, { workspaceStatus: workspace.status, workspacePlan: workspace.plan, trialEndsAt: workspace.trial_ends_at }),
     isGracePeriod: GRACE_STATUSES.has(workspace.status),
     isAdmin,

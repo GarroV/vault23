@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendMessage, sendMessageWithKeyboard, sendMessageWithReplyKeyboard, answerCallbackQuery } from './telegram.ts';
+import { sendMessage, sendMessageWithKeyboard, removeReplyKeyboard, setMyCommands, answerCallbackQuery } from './telegram.ts';
 import { isProcessed, markProcessed } from './idempotency.ts';
 import { identifyUser } from './core/identify.ts';
 import { createTranslator } from './core/i18n.ts';
@@ -8,8 +8,8 @@ import { ModuleRegistry } from './core/registry.ts';
 import { loadSession, saveSession, clearSession } from './core/session.ts';
 import { loadWorkspace, buildContext, loadLocaleOverrides } from './core/context.ts';
 import { handleLanguageCommand, handleLanguageCallback } from './core/lang.ts';
-import { buildMainKeyboard } from './core/menu.ts';
 import { listConfigs } from './core/config.ts';
+import { DEFAULT_COMMANDS, ADMIN_COMMANDS } from './core/commands.ts';
 import { TasksModule } from './modules/tasks/index.ts';
 import { NotesModule } from './modules/notes/index.ts';
 import { AttachmentsModule } from './modules/attachments/index.ts';
@@ -34,7 +34,7 @@ registry.register(new KbModule());
 registry.register(new GoogleModule());
 registry.register(new EmailModule());
 
-// Maps __menu_X__ commands to their /slash equivalents for module routing
+// __menu_X__ → /slash equivalents (from reply-keyboard buttons, kept for compatibility)
 const MENU_TO_CMD: Record<string, string> = {
   __menu_tasks__:       '/tasks',
   __menu_notes__:       '/notes',
@@ -105,7 +105,6 @@ Deno.serve(async (req: Request) => {
     }
     let event: BotEvent = rawEvent;
 
-    // Admin check (env var override; DB flag is authoritative for edge cases)
     const isAdmin = identity.telegramId === (Deno.env.get('ADMIN_TELEGRAM_ID') ?? '');
 
     // ── /start ──────────────────────────────────────────────────────────────
@@ -122,31 +121,20 @@ Deno.serve(async (req: Request) => {
         consent_version: 'v1-2026-05-26',
       }).eq('id', identity.userId);
 
-      await sendMessageWithReplyKeyboard(
-        telegramToken, chatId,
-        t('welcome_new'),
-        buildMainKeyboard(identity.language, isAdmin),
-      );
+      // Register bot command list and remove any leftover reply keyboard
+      await Promise.all([
+        setMyCommands(telegramToken, DEFAULT_COMMANDS).catch(() => {}),
+        isAdmin
+          ? setMyCommands(telegramToken, ADMIN_COMMANDS, { type: 'chat', chat_id: chatId }).catch(() => {})
+          : Promise.resolve(),
+        removeReplyKeyboard(telegramToken, chatId, t('welcome_new')),
+      ]);
       return new Response('OK', { status: 200 });
     }
 
     // ── /help ────────────────────────────────────────────────────────────────
     if (event.command === '/help') {
-      await sendMessageWithReplyKeyboard(
-        telegramToken, chatId,
-        t('help_text'),
-        buildMainKeyboard(identity.language, isAdmin),
-      );
-      return new Response('OK', { status: 200 });
-    }
-
-    // ── /menu ────────────────────────────────────────────────────────────────
-    if (event.command === '/menu') {
-      await sendMessageWithReplyKeyboard(
-        telegramToken, chatId,
-        t('menu_title'),
-        buildMainKeyboard(identity.language, isAdmin),
-      );
+      await sendMessage(telegramToken, chatId, t('help_text'));
       return new Response('OK', { status: 200 });
     }
 
@@ -185,8 +173,8 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    // ── Settings submenu ─────────────────────────────────────────────────────
-    if (event.command === '__menu_settings__') {
+    // ── /settings ────────────────────────────────────────────────────────────
+    if (event.command === '/settings' || event.command === '__menu_settings__') {
       await sendMessageWithKeyboard(telegramToken, chatId, t('menu_settings_title'), [
         [{ text: t('btn_language'),     callback_data: 'm_lang' }],
         [{ text: t('btn_subscription'), callback_data: 'm_sub'  }],
@@ -195,20 +183,19 @@ Deno.serve(async (req: Request) => {
       return new Response('OK', { status: 200 });
     }
 
-    // ── Admin submenu ────────────────────────────────────────────────────────
-    if (event.command === '__menu_admin__') {
-      if (!isAdmin) return new Response('OK', { status: 200 });
+    // ── /adminmenu ───────────────────────────────────────────────────────────
+    if ((event.command === '/adminmenu' || event.command === '__menu_admin__') && isAdmin) {
       await sendMessageWithKeyboard(telegramToken, chatId, t('menu_admin_title'), [
         [
-          { text: t('btn_admin_stats'),   callback_data: 'm_admin_stats' },
-          { text: t('btn_admin_cfg'),     callback_data: 'm_admin_cfg'   },
+          { text: t('btn_admin_stats'),   callback_data: 'm_admin_stats'   },
+          { text: t('btn_admin_cfg'),     callback_data: 'm_admin_cfg'     },
         ],
         [{ text: t('btn_admin_locales'), callback_data: 'm_admin_locales' }],
       ]);
       return new Response('OK', { status: 200 });
     }
 
-    // ── Translate menu commands → slash commands for module routing ───────────
+    // ── Translate __menu_X__ → /slash for module routing ────────────────────
     if (event.command && event.command in MENU_TO_CMD) {
       event = { ...event, command: MENU_TO_CMD[event.command] };
     }
@@ -222,7 +209,7 @@ Deno.serve(async (req: Request) => {
 
     const ctx = buildContext({ identity, workspace, session, event, chatId, telegramToken, db: serviceDb, isAdmin, localeOverrides });
 
-    // ── Settings callbacks (need ctx for reply) ───────────────────────────────
+    // ── Settings / admin callbacks ────────────────────────────────────────────
     if (event.type === 'callback_query') {
       const cb = event.callbackData ?? '';
 
@@ -240,10 +227,9 @@ Deno.serve(async (req: Request) => {
       }
 
       if (cb === 'm_sub') {
-        // Re-route to billing module as /subscription
         event = { ...event, type: 'command', command: '/subscription', source: 'button' };
         await answerCallbackQuery(telegramToken, update.callback_query!.id).catch(() => {});
-        // Fall through to module routing below
+        // fall through to module routing
       }
 
       if (isAdmin && cb === 'm_admin_stats') {
