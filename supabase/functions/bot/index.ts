@@ -39,8 +39,6 @@ const MENU_TO_CMD: Record<string, string> = {
   __menu_tasks__:       '/tasks',
   __menu_notes__:       '/notes',
   __menu_reminders__:   '/reminders',
-  __menu_contractors__: '/contractors',
-  __menu_services__:    '/services',
   __menu_stats__:       '/stats',
 };
 

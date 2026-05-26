@@ -8,8 +8,6 @@ export const DEFAULT_COMMANDS: BotCommand[] = [
   { command: 'notes',       description: 'Мои заметки' },
   { command: 'remind',      description: 'Поставить напоминание' },
   { command: 'reminders',   description: 'Мои напоминания' },
-  { command: 'contractors', description: 'Подрядчики' },
-  { command: 'services',    description: 'Прайс-лист' },
   { command: 'ask',         description: 'Спросить базу знаний' },
   { command: 'stats',       description: 'Моя статистика' },
   { command: 'settings',    description: 'Настройки' },
