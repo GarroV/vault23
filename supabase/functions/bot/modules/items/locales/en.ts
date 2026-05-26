@@ -18,7 +18,7 @@ export const en: Record<string, string> = {
   ask_new_due: 'New deadline (any format):',
   ask_new_assignee: 'Who is the assignee?',
   error_time_parse: 'Could not parse the time. Try: "tomorrow at 10", "next Friday", "in 2 hours".',
-  btn_done: '✅ Done',
+  btn_done: '✅',
   btn_edit: '✏️',
   btn_delete: '🗑',
 };

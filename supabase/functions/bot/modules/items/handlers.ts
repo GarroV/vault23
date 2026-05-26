@@ -165,10 +165,14 @@ export async function handleItemEdit(ctx: BotContext): Promise<ModuleResult> {
   if (!itemId) return { ok: false, clearSession: true };
 
   const buttons = [
-    [{ text: ctx.t('btn_edit_content'),  callbackData: `item_edit_field:${itemId}:content`  }],
-    [{ text: ctx.t('btn_edit_due'),      callbackData: `item_edit_field:${itemId}:due_at`   }],
-    [{ text: ctx.t('btn_edit_assignee'), callbackData: `item_edit_field:${itemId}:assignee` }],
-    [{ text: ctx.t('btn_clear_due'),     callbackData: `item_clear_due:${itemId}`           }],
+    [
+      { text: ctx.t('btn_edit_content'),  callbackData: `item_edit_field:${itemId}:content`  },
+      { text: ctx.t('btn_edit_due'),      callbackData: `item_edit_field:${itemId}:due_at`   },
+    ],
+    [
+      { text: ctx.t('btn_edit_assignee'), callbackData: `item_edit_field:${itemId}:assignee` },
+      { text: ctx.t('btn_clear_due'),     callbackData: `item_clear_due:${itemId}`           },
+    ],
   ];
   await ctx.replyWithButtons(ctx.t('ask_edit_field'), buttons);
   return { ok: true, clearSession: true };

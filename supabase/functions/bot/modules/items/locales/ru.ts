@@ -18,7 +18,7 @@ export const ru: Record<string, string> = {
   ask_new_due: 'Новый дедлайн (в любом формате):',
   ask_new_assignee: 'Кто исполнитель?',
   error_time_parse: 'Не смог распознать время. Попробуй: «завтра в 10», «в пятницу», «через 2 часа».',
-  btn_done: '✅ Готово',
+  btn_done: '✅',
   btn_edit: '✏️',
   btn_delete: '🗑',
 };
