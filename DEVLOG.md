@@ -282,3 +282,51 @@ supabase/functions/bot/modules/tasks/
 - Язык: `language_code === 'ru'` → русский, иначе → английский.
 - Все операции через service_role (RLS bypass для auth lookup без workspace контекста).
 - `index.ts` обновлён: идентификация до передачи в обработчик, userId в логах.
+
+---
+
+## 2026-05-26 (сессия 3 — финальная)
+
+### Этапы 7.2, 7.8, 9.9, 9.11, 9.16 + OP.3/OP.4 + cron
+
+**7.2 · Услуги / Services (contractors module)**
+- `contractors/queries.ts`: добавлены `createService`, `listServices` (join с contractors.name).
+- `contractors/handlers.ts`: multi-step flow `/addservice` → имя → цена (парсинг `"1500/час"`) → выбор подрядчика → save; `/services` → список, сгруппированный по подрядчикам.
+- `contractors/index.ts` расширен: команды `/addservice`, `/services`; состояния `service_awaiting_name/price/contractor`.
+- i18n: `ask_service_name`, `ask_service_price`, `ask_service_contractor`, `service_created`, `services_empty` в ru/en.
+
+**9.16 · Locale overrides (locale_overrides table)**
+- Миграция `000009_locale_overrides.sql`: таблица `locale_overrides(lang, key, value)` с RLS.
+- `bot/core/i18n.ts`: `getAllLocales()` — возвращает merged static+registered карту для cabinet; `createTranslator` принимает `overrides` (DB слой поверх static TS).
+- `bot/core/context.ts`: `loadLocaleOverrides(db)` — параллельный запрос при каждом сообщении; передаётся в `buildContext`.
+- `bot/index.ts`: localeOverrides загружаются вместе с session+workspace в `Promise.all`.
+
+**9.9 / 9.16 · Cabinet-API расширения**
+- `cabinet-api/index.ts`: `GET /locales` — все ключи с defaults+overrides; `POST /locales` — upsert/delete по пустому значению; `GET /pricelist` — сервисы с именем подрядчика.
+
+**9.9 · Личный кабинет — вкладка Locales**
+- `landing/cabinet/index.html`: добавлена вкладка Locales (только для admin).
+- Таблица всех ключей бота (~100 ключей), редактируемая inline.
+- Поиск/фильтр по ключам, overridden-значения подсвечиваются синим. Пустое значение = сброс к дефолту.
+
+**9.11 · Справка**
+- `landing/help/index.html`: полный справочник команд (7 секций) + FAQ 7 вопросов.
+
+**7.8 · Прайс-лист → PDF**
+- `landing/pricelist/index.html`: живой HTML-документ, группировка по подрядчикам, кнопка «Print / Save PDF».
+- Данные из `cabinet-api/pricelist` по JWT токену из localStorage.
+
+**OP.3 · Backup Plan** — `docs/BACKUP_PLAN.md`: RPO/RTO, процедуры восстановления, retention policy.
+
+**OP.4 · Unit Economics** — `docs/UNIT_ECONOMICS.md`: ~$0.18/воркспейс/мес переменных, break-even 6 Solo-подписчиков.
+
+**Cron schedules (миграция 000010)**
+- `pg_cron` + `pg_net` включены через миграцию.
+- `remind-every-minute`: `* * * * *`, вызывает `/remind` Edge Function.
+- `billing-housekeeping-daily`: `0 3 * * *`, вызывает `/billing-housekeeping`.
+- Service role key хранится в `app_settings.CRON_SERVICE_KEY` (не в коде).
+
+**Деплой:**
+- Все функции: `bot`, `cabinet-api`, `web-auth` + остальные ранее — задеплоены.
+- Миграции 000009 и 000010 применены.
+- Оставшееся ручное действие: 9.13 (апгрейд Supabase на Pro).
