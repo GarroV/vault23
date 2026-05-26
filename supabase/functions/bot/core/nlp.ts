@@ -1,8 +1,15 @@
 import { getConfig } from './config.ts';
 import type { SupabaseClient } from './types.ts';
 
+export interface NlpRecurrence {
+  type: 'daily' | 'weekly' | 'monthly' | 'interval';
+  weekday?: number;
+  day?: number;
+  days?: number;
+}
+
 export type NlpResult =
-  | { intent: 'create_task'; title: string; due_at: string | null }
+  | { intent: 'create_task'; title: string; due_at: string | null; recurrence?: NlpRecurrence | null }
   | { intent: 'create_note'; content: string }
   | { intent: 'set_reminder'; text: string; remind_at: string }
   | { intent: 'list_tasks' }
@@ -63,7 +70,7 @@ export async function parseNaturalLanguage(
 Classify the user message and extract parameters. Return JSON only — no markdown, no explanation.
 
 Return exactly one of:
-{"intent":"create_task","title":"<concise task title>","due_at":"<ISO 8601 UTC datetime or null>"}
+{"intent":"create_task","title":"<concise task title>","due_at":"<ISO 8601 UTC datetime or null>","recurrence":<recurrence or null>}
 {"intent":"create_note","content":"<text to save>"}
 {"intent":"set_reminder","text":"<reminder message>","remind_at":"<ISO 8601 UTC datetime>"}
 {"intent":"list_tasks"}
@@ -72,10 +79,16 @@ Return exactly one of:
 {"intent":"kb_ask","question":"<the question>"}
 {"intent":"unknown"}
 
+Recurrence format (use null if not recurring):
+{"type":"monthly","day":5}        — every month on day 5
+{"type":"weekly","weekday":5}     — every week on Friday (0=Sun,1=Mon,...,6=Sat)
+{"type":"daily"}                  — every day
+{"type":"interval","days":14}     — every 14 days
+
 Classification rules:
-- create_task: user wants to create/add a task. Resolve relative dates (e.g. "next Friday 09:00 UTC").
+- create_task: user wants to create/add a task. Resolve relative dates. Detect recurrence patterns.
 - create_note: user saves information, thoughts, prices, contacts — words like "save", "note", "записать", "запомни".
-- set_reminder: user wants a timed notification. "remind me in 2 hours" → compute remind_at from now.
+- set_reminder: user wants a timed notification. Compute remind_at from now.
 - list_tasks: user asks to see/show tasks. "покажи задачи", "what are my tasks".
 - list_notes: user asks to see notes. "покажи заметки", "show my notes".
 - search: user asks to find/search something specific. "найди задачу про максима".

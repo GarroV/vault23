@@ -333,12 +333,12 @@ Deno.serve(async (req: Request) => {
         const topicId = topics[0]?.id;
         if (!topicId) { await ctx.reply(t('cmd_unknown')); }
         else {
-          await createTask(ctx.db, ctx.user.workspaceId, nlp.title, topicId, undefined, nlp.due_at);
+          const taskId = await createTask(ctx.db, ctx.user.workspaceId, nlp.title, topicId, undefined, nlp.due_at, nlp.recurrence);
           if (nlp.due_at) {
             const remindAt = new Date(nlp.due_at);
             if (!isNaN(remindAt.getTime()) && remindAt > new Date()) {
               const { createReminder } = await import('./modules/reminders/queries.ts');
-              await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, nlp.title, remindAt).catch(() => {});
+              await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, nlp.title, remindAt, taskId).catch(() => {});
             }
             const date = remindAt.toLocaleDateString(
               identity.language === 'ru' ? 'ru-RU' : 'en-US',

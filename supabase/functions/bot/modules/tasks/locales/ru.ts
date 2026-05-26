@@ -18,4 +18,6 @@ export const ru: Record<string, string> = {
   task_skip_deadline_btn: '⏩ Без дедлайна',
   task_created_with_deadline: '✅ Задача создана: {title}\n📅 Дедлайн: {date}\n⏰ Напомню тогда же.',
   task_deadline_invalid: 'Не получилось распознать дату. Попробуй ещё раз или нажми «Без дедлайна».',
+  task_rescheduled: '✅ Выполнено! Следующий срок: {date}',
+  task_recurring_label: '🔄',
 };

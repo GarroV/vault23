@@ -18,4 +18,6 @@ export const en: Record<string, string> = {
   task_skip_deadline_btn: '⏩ No deadline',
   task_created_with_deadline: '✅ Task created: {title}\n📅 Deadline: {date}\n⏰ I\'ll remind you then.',
   task_deadline_invalid: 'Couldn\'t parse the date. Try again or tap "No deadline".',
+  task_rescheduled: '✅ Done! Next due: {date}',
+  task_recurring_label: '🔄',
 };

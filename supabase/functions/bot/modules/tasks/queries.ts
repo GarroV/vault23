@@ -8,6 +8,54 @@ export interface Topic {
 export interface Task {
   id: string;
   title: string;
+  recurrence?: Recurrence | null;
+}
+
+export interface TaskDue {
+  id: string;
+  title: string;
+  due_at: string;
+}
+
+export interface TaskFull {
+  id: string;
+  title: string;
+  due_at: string | null;
+  recurrence: Recurrence | null;
+}
+
+export interface Recurrence {
+  type: 'daily' | 'weekly' | 'monthly' | 'interval';
+  weekday?: number; // 0=Sun … 6=Sat
+  day?: number;     // 1–31 for monthly
+  days?: number;    // interval length
+}
+
+export function computeNextDueAt(currentIso: string, rec: Recurrence): string {
+  const d = new Date(currentIso);
+  switch (rec.type) {
+    case 'daily':
+      d.setUTCDate(d.getUTCDate() + 1);
+      break;
+    case 'weekly': {
+      const target = rec.weekday ?? 1;
+      let diff = target - d.getUTCDay();
+      if (diff <= 0) diff += 7;
+      d.setUTCDate(d.getUTCDate() + diff);
+      break;
+    }
+    case 'monthly': {
+      const targetDay = rec.day ?? 1;
+      d.setUTCMonth(d.getUTCMonth() + 1);
+      const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+      d.setUTCDate(Math.min(targetDay, daysInMonth));
+      break;
+    }
+    case 'interval':
+      d.setUTCDate(d.getUTCDate() + (rec.days ?? 30));
+      break;
+  }
+  return d.toISOString();
 }
 
 export async function getVisibleTopics(db: SupabaseClient, workspaceId: string): Promise<Topic[]> {
@@ -28,23 +76,42 @@ export async function createTask(
   topicId: string,
   parentTaskId?: string,
   dueAt?: string | null,
-): Promise<void> {
-  const { error } = await db.from('tasks').insert({
+  recurrence?: Recurrence | null,
+): Promise<string> {
+  const { data, error } = await db.from('tasks').insert({
     workspace_id: workspaceId,
     title,
     topic_id: topicId,
     status: 'open',
     ...(parentTaskId ? { parent_task_id: parentTaskId } : {}),
     ...(dueAt ? { due_at: dueAt } : {}),
-  });
+    ...(recurrence ? { recurrence } : {}),
+  }).select('id').single();
 
-  if (error) throw new Error(`createTask: ${error.message}`);
+  if (error || !data) throw new Error(`createTask: ${error?.message}`);
+  return (data as { id: string }).id;
+}
+
+export async function getTaskFull(
+  db: SupabaseClient,
+  workspaceId: string,
+  taskId: string,
+): Promise<TaskFull | null> {
+  const { data, error } = await db
+    .from('tasks')
+    .select('id, title, due_at, recurrence')
+    .eq('workspace_id', workspaceId)
+    .eq('id', taskId)
+    .single();
+
+  if (error) return null;
+  return data as TaskFull;
 }
 
 export async function getOpenTasks(db: SupabaseClient, workspaceId: string): Promise<Task[]> {
   const { data, error } = await db
     .from('tasks')
-    .select('id, title')
+    .select('id, title, recurrence')
     .eq('workspace_id', workspaceId)
     .in('status', ['open', 'in_progress'])
     .is('deleted_at', null)
@@ -86,6 +153,21 @@ export async function updateTaskStatus(
   return !error;
 }
 
+export async function rescheduleTask(
+  db: SupabaseClient,
+  workspaceId: string,
+  taskId: string,
+  newDueAt: string,
+): Promise<void> {
+  const { error } = await db
+    .from('tasks')
+    .update({ status: 'open', due_at: newDueAt })
+    .eq('workspace_id', workspaceId)
+    .eq('id', taskId);
+
+  if (error) throw new Error(`rescheduleTask: ${error.message}`);
+}
+
 export async function getTasksByTopic(
   db: SupabaseClient,
   workspaceId: string,
@@ -103,12 +185,6 @@ export async function getTasksByTopic(
 
   if (error) throw new Error(`getTasksByTopic: ${error.message}`);
   return (data ?? []) as Task[];
-}
-
-export interface TaskDue {
-  id: string;
-  title: string;
-  due_at: string;
 }
 
 export async function getTasksDueOrOverdue(

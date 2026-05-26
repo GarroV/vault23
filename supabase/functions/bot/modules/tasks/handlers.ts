@@ -1,14 +1,18 @@
 import type { BotContext, ModuleResult } from '../../core/types.ts';
 import { getConfig } from '../../core/config.ts';
 import { parseDateTime } from '../../core/nlp.ts';
-import { createReminder } from '../reminders/queries.ts';
+import { createReminder, rescheduleTaskReminder } from '../reminders/queries.ts';
 import {
   getVisibleTopics,
   createTask,
+  getTaskFull,
   getOpenTasks,
   updateTaskStatus,
+  rescheduleTask,
+  computeNextDueAt,
   getTasksByTopic,
   getTasksDueOrOverdue,
+  type Recurrence,
 } from './queries.ts';
 import {
   getTaskCalendarEventId,
@@ -36,13 +40,14 @@ async function finalizeTask(
   topicId: string,
   parentTaskId: string | undefined,
   dueAt: string | null,
+  recurrence?: Recurrence | null,
 ): Promise<ModuleResult> {
-  await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId, dueAt);
+  const taskId = await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId, dueAt, recurrence);
 
   if (dueAt) {
     const remindAt = new Date(dueAt);
     if (!isNaN(remindAt.getTime()) && remindAt > new Date()) {
-      await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, title, remindAt).catch(() => {});
+      await createReminder(ctx.db, ctx.user.workspaceId, ctx.user.id, title, remindAt, taskId).catch(() => {});
     }
     const dateStr = remindAt.toLocaleDateString(
       ctx.user.language === 'ru' ? 'ru-RU' : 'en-US',
@@ -152,7 +157,8 @@ export async function handleTaskListCommand(ctx: BotContext): Promise<ModuleResu
     }
 
     for (const task of tasks) {
-      await ctx.replyWithButtons(task.title, [
+      const label = task.recurrence ? `${ctx.t('task_recurring_label')} ${task.title}` : task.title;
+      await ctx.replyWithButtons(label, [
         [
           { text: ctx.t('task_btn_done'), callbackData: `task_done:${task.id}` },
           { text: ctx.t('task_btn_defer'), callbackData: `task_defer:${task.id}` },
@@ -252,10 +258,27 @@ export async function handleStatusChange(ctx: BotContext): Promise<ModuleResult>
     return { ok: false, clearSession: true };
   }
 
-  const status = action === 'task_done' ? 'done' : 'deferred';
-  const confirmKey = status === 'done' ? 'task_done_confirm' : 'task_deferred_confirm';
+  const isDone = action === 'task_done';
+  const status = isDone ? 'done' : 'deferred';
+  const confirmKey = isDone ? 'task_done_confirm' : 'task_deferred_confirm';
 
   try {
+    // For "done" on a recurring task: reschedule instead of closing
+    if (isDone) {
+      const task = await getTaskFull(ctx.db, ctx.user.workspaceId, taskId);
+      if (task?.recurrence && task.due_at) {
+        const nextDueAt = computeNextDueAt(task.due_at, task.recurrence);
+        await rescheduleTask(ctx.db, ctx.user.workspaceId, taskId, nextDueAt);
+        await rescheduleTaskReminder(ctx.db, ctx.user.workspaceId, taskId, nextDueAt).catch(() => {});
+        const dateStr = new Date(nextDueAt).toLocaleDateString(
+          ctx.user.language === 'ru' ? 'ru-RU' : 'en-US',
+          { day: 'numeric', month: 'short', timeZone: 'UTC' },
+        );
+        await ctx.reply(ctx.t('task_rescheduled', { date: dateStr }));
+        return { ok: true, clearSession: true };
+      }
+    }
+
     // Get calendar event ID before update (fire-and-forget cleanup after)
     const calEventId = await getTaskCalendarEventId(ctx.db, ctx.user.workspaceId, taskId).catch(() => null);
 
