@@ -14,6 +14,8 @@ import {
   handleMeetTaskAttach,
   handleMeetSkip,
   handleVoiceNote,
+  handleVoiceCreateTask,
+  handleVoiceSaveAsNote,
 } from './handlers.ts';
 
 registerLocale(ru, en);
@@ -30,7 +32,9 @@ export class NotesModule implements BotModule {
         event.callbackData?.startsWith('note_task:') ||
         event.callbackData === 'note_skip' ||
         event.callbackData?.startsWith('meet_task:') ||
-        event.callbackData === 'meet_skip'
+        event.callbackData === 'meet_skip' ||
+        event.callbackData?.startsWith('voice_create_task:') ||
+        event.callbackData === 'voice_save_as_note'
       ) ?? false;
     }
     return false;
@@ -52,6 +56,8 @@ export class NotesModule implements BotModule {
       if (data === 'note_skip') return handleNoteSkip(ctx);
       if (data.startsWith('meet_task:')) return handleMeetTaskAttach(ctx);
       if (data === 'meet_skip') return handleMeetSkip(ctx);
+      if (data.startsWith('voice_create_task:')) return handleVoiceCreateTask(ctx);
+      if (data === 'voice_save_as_note') return handleVoiceSaveAsNote(ctx);
     }
 
     if (session.state === 'note_awaiting_content' && event.type === 'text') return handleNoteContentInput(ctx);

@@ -11,6 +11,7 @@ import {
   handleFilterCommand,
   handleTopicFilter,
   handleTodayCommand,
+  handleSubtaskInit,
 } from './handlers.ts';
 
 registerLocale(ru, en);
@@ -26,7 +27,8 @@ export class TasksModule implements BotModule {
         event.callbackData?.startsWith('task_done:') ||
         event.callbackData?.startsWith('task_defer:') ||
         event.callbackData?.startsWith('task_topic:') ||
-        event.callbackData?.startsWith('filter_topic:')
+        event.callbackData?.startsWith('filter_topic:') ||
+        event.callbackData?.startsWith('task_subtask:')
       ) ?? false;
     }
     return false;
@@ -45,6 +47,7 @@ export class TasksModule implements BotModule {
       if (data.startsWith('task_topic:')) return handleTopicSelection(ctx);
       if (data.startsWith('task_done:') || data.startsWith('task_defer:')) return handleStatusChange(ctx);
       if (data.startsWith('filter_topic:')) return handleTopicFilter(ctx);
+      if (data.startsWith('task_subtask:')) return handleSubtaskInit(ctx);
     }
 
     if (session.state === 'task_awaiting_title' && event.type === 'text') return handleTitleInput(ctx);

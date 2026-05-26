@@ -1,6 +1,7 @@
 export interface InlineKeyboardButton {
   text: string;
-  callback_data: string;
+  callback_data?: string;
+  url?: string;
 }
 
 async function post(token: string, method: string, body: unknown): Promise<void> {

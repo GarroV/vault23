@@ -10,6 +10,7 @@ export const ru: Record<string, string> = {
   error_unexpected: 'Что-то пошло не так. Попробуй ещё раз.',
   task_btn_done: '✅ Готово',
   task_btn_defer: '⏸ Отложить',
+  task_btn_subtask: '➕ Подзадача',
   filter_choose_topic: 'Выбери тему:',
   filter_topic_empty: 'В этой теме нет открытых задач.',
   today_empty: 'Нет задач на сегодня и просроченных.',

@@ -55,7 +55,10 @@ export function buildContext(params: {
         telegramToken,
         chatId,
         text,
-        buttons.map(row => row.map(btn => ({ text: btn.text, callback_data: btn.callbackData }))),
+        buttons.map(row => row.map(btn => ({
+          text: btn.text,
+          ...(btn.url ? { url: btn.url } : { callback_data: btn.callbackData ?? '' }),
+        }))),
       ),
     gate,
     db,

@@ -10,6 +10,7 @@ export const en: Record<string, string> = {
   error_unexpected: 'Something went wrong. Please try again.',
   task_btn_done: '✅ Done',
   task_btn_defer: '⏸ Defer',
+  task_btn_subtask: '➕ Subtask',
   filter_choose_topic: 'Choose a topic:',
   filter_topic_empty: 'No open tasks in this topic.',
   today_empty: 'No tasks due today or overdue.',

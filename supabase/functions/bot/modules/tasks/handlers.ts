@@ -23,6 +23,8 @@ export async function handleTitleInput(ctx: BotContext): Promise<ModuleResult> {
   try {
     const topics = await getVisibleTopics(ctx.db, ctx.user.workspaceId);
 
+    const parentTaskId = ctx.session.data.parentTaskId as string | undefined;
+
     if (topics.length <= 1) {
       const topicId = topics[0]?.id;
       if (!topicId) {
@@ -30,14 +32,14 @@ export async function handleTitleInput(ctx: BotContext): Promise<ModuleResult> {
         await ctx.reply(ctx.t('error_unexpected'));
         return { ok: false, clearSession: true };
       }
-      await createTask(ctx.db, ctx.user.workspaceId, title, topicId);
+      await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId);
       await ctx.reply(ctx.t('task_created', { title }));
       return { ok: true, clearSession: true };
     }
 
     const buttons = topics.map(topic => [{ text: topic.name, callbackData: `task_topic:${topic.id}` }]);
     await ctx.replyWithButtons(ctx.t('task_choose_topic'), buttons);
-    return { ok: true, session: { state: 'task_awaiting_topic', data: { title } } };
+    return { ok: true, session: { state: 'task_awaiting_topic', data: { title, parentTaskId } } };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[tasks] handleTitleInput error', { error: message, userId: ctx.user.id });
@@ -49,6 +51,7 @@ export async function handleTitleInput(ctx: BotContext): Promise<ModuleResult> {
 export async function handleTopicSelection(ctx: BotContext): Promise<ModuleResult> {
   const topicId = ctx.event.callbackData?.split(':')[1];
   const title = ctx.session.data.title as string | undefined;
+  const parentTaskId = ctx.session.data.parentTaskId as string | undefined;
 
   if (!topicId || !title) {
     await ctx.reply(ctx.t('error_unexpected'));
@@ -56,7 +59,7 @@ export async function handleTopicSelection(ctx: BotContext): Promise<ModuleResul
   }
 
   try {
-    await createTask(ctx.db, ctx.user.workspaceId, title, topicId);
+    await createTask(ctx.db, ctx.user.workspaceId, title, topicId, parentTaskId);
     await ctx.reply(ctx.t('task_created', { title }));
     return { ok: true, clearSession: true };
   } catch (err) {
@@ -65,6 +68,16 @@ export async function handleTopicSelection(ctx: BotContext): Promise<ModuleResul
     await ctx.reply(ctx.t('error_unexpected'));
     return { ok: false, clearSession: true };
   }
+}
+
+export async function handleSubtaskInit(ctx: BotContext): Promise<ModuleResult> {
+  const parentTaskId = ctx.event.callbackData?.split(':')[1];
+  if (!parentTaskId) {
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+  await ctx.reply(ctx.t('ask_task_title'));
+  return { ok: true, session: { state: 'task_awaiting_title', data: { parentTaskId } } };
 }
 
 export async function handleTaskListCommand(ctx: BotContext): Promise<ModuleResult> {
@@ -77,10 +90,13 @@ export async function handleTaskListCommand(ctx: BotContext): Promise<ModuleResu
     }
 
     for (const task of tasks) {
-      await ctx.replyWithButtons(task.title, [[
-        { text: ctx.t('task_btn_done'), callbackData: `task_done:${task.id}` },
-        { text: ctx.t('task_btn_defer'), callbackData: `task_defer:${task.id}` },
-      ]]);
+      await ctx.replyWithButtons(task.title, [
+        [
+          { text: ctx.t('task_btn_done'), callbackData: `task_done:${task.id}` },
+          { text: ctx.t('task_btn_defer'), callbackData: `task_defer:${task.id}` },
+        ],
+        [{ text: ctx.t('task_btn_subtask'), callbackData: `task_subtask:${task.id}` }],
+      ]);
     }
 
     return { ok: true, clearSession: true };

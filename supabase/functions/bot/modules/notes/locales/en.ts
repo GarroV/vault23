@@ -15,4 +15,8 @@ export const en: Record<string, string> = {
   meet_not_active: 'No active meeting right now.',
   voice_saved: '🎤 Saved: {text}',
   voice_empty: 'Could not recognise speech. Please try again.',
+  voice_task_confirm: '📋 Create a task?\n\n{title}',
+  voice_btn_create_task: '✅ Create task',
+  voice_btn_save_note: '📝 Save as note',
+  voice_task_created: 'Task created: {title} ✅',
 };

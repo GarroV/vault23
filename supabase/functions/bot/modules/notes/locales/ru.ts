@@ -15,4 +15,8 @@ export const ru: Record<string, string> = {
   meet_not_active: 'Сейчас нет активной встречи.',
   voice_saved: '🎤 Сохранено: {text}',
   voice_empty: 'Не удалось распознать речь. Попробуй ещё раз.',
+  voice_task_confirm: '📋 Создать задачу?\n\n{title}',
+  voice_btn_create_task: '✅ Создать задачу',
+  voice_btn_save_note: '📝 Сохранить как заметку',
+  voice_task_created: 'Задача создана: {title} ✅',
 };

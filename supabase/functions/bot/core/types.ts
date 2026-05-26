@@ -65,7 +65,8 @@ export interface ReplyOptions {
 
 export interface InlineButton {
   text: string;
-  callbackData: string;
+  callbackData?: string;
+  url?: string;
 }
 
 export interface GateResult {

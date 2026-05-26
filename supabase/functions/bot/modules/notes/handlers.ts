@@ -88,6 +88,97 @@ async function transcribeWithWhisper(audioBytes: Uint8Array, mimeType: string): 
   return json.text?.trim() ?? '';
 }
 
+async function detectTaskIntent(text: string): Promise<string | null> {
+  const apiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+  if (!apiKey) return null;
+
+  const systemPrompt = 'You extract task creation intent from text. ' +
+    'If the text is a command to create a task (e.g. "Create a task", "Add task", "Remind me to", "Задачу по", "Создай задачу"), ' +
+    'respond with JSON: {"is_task": true, "title": "<concise task title>"}. ' +
+    'Otherwise respond with: {"is_task": false}. Respond with JSON only, no markdown.';
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }],
+        max_tokens: 100,
+        temperature: 0,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { choices: Array<{ message: { content: string } }> };
+    const parsed = JSON.parse(json.choices[0].message.content) as { is_task: boolean; title?: string };
+    return parsed.is_task && parsed.title ? parsed.title : null;
+  } catch {
+    return null;
+  }
+}
+
+function encodeTitle(title: string): string {
+  return encodeURIComponent(title).slice(0, 40); // stay within 64-char callback limit
+}
+
+export async function handleVoiceCreateTask(ctx: BotContext): Promise<ModuleResult> {
+  const encoded = ctx.event.callbackData?.split(':')[1] ?? '';
+  const title = decodeURIComponent(encoded);
+  const text = ctx.session.data.text as string | undefined;
+
+  if (!title) {
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+
+  try {
+    // Import tasks queries to get default topic
+    const { getVisibleTopics } = await import('../tasks/queries.ts');
+    const topics = await getVisibleTopics(ctx.db, ctx.user.workspaceId);
+    const topicId = topics[0]?.id;
+    if (!topicId) {
+      await ctx.reply(ctx.t('error_unexpected'));
+      return { ok: false, clearSession: true };
+    }
+
+    const { createTask } = await import('../tasks/queries.ts');
+    await createTask(ctx.db, ctx.user.workspaceId, title, topicId);
+    await ctx.reply(ctx.t('voice_task_created', { title }));
+    return { ok: true, clearSession: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[notes] handleVoiceCreateTask error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
+export async function handleVoiceSaveAsNote(ctx: BotContext): Promise<ModuleResult> {
+  const text = ctx.session.data.text as string | undefined;
+  if (!text) {
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+
+  try {
+    const noteId = await createNote(ctx.db, ctx.user.workspaceId, text);
+    const tasks = await getOpenTasksForPicker(ctx.db, ctx.user.workspaceId);
+    if (tasks.length === 0) {
+      await ctx.reply(ctx.t('note_saved'));
+      return { ok: true, clearSession: true };
+    }
+    const taskButtons = tasks.map(t => [{ text: t.title, callbackData: `note_task:${t.id}` }]);
+    taskButtons.push([{ text: ctx.t('note_btn_skip'), callbackData: 'note_skip' }]);
+    await ctx.replyWithButtons(ctx.t('note_attach_ask'), taskButtons);
+    return { ok: true, session: { state: 'note_awaiting_task', data: { noteId } } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[notes] handleVoiceSaveAsNote error', { error: message, userId: ctx.user.id });
+    await ctx.reply(ctx.t('error_unexpected'));
+    return { ok: false, clearSession: true };
+  }
+}
+
 export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
   const fileId = ctx.event.fileId;
   const mimeType = ctx.event.mimeType ?? 'audio/ogg';
@@ -109,9 +200,24 @@ export async function handleVoiceNote(ctx: BotContext): Promise<ModuleResult> {
       return { ok: false, clearSession: true };
     }
 
-    const noteId = await createNote(ctx.db, ctx.user.workspaceId, text);
-    // Track whisper usage: 1 unit = 1 request (audio billed per minute, tracked as request count)
+    // Track whisper usage
     trackUsage(ctx.db, ctx.user.workspaceId, 'whisper', 'whisper-1', 1).catch(() => {});
+
+    // NLU: detect if voice is a task command
+    const taskIntent = await detectTaskIntent(text);
+    if (taskIntent) {
+      // Show confirmation before creating task (8.3 mandatory confirmation)
+      await ctx.replyWithButtons(
+        ctx.t('voice_task_confirm', { title: taskIntent }),
+        [[
+          { text: ctx.t('voice_btn_create_task'), callbackData: `voice_create_task:${encodeTitle(taskIntent)}` },
+          { text: ctx.t('voice_btn_save_note'), callbackData: 'voice_save_as_note' },
+        ]],
+      );
+      return { ok: true, session: { state: 'voice_awaiting_choice', data: { text, taskTitle: taskIntent } } };
+    }
+
+    const noteId = await createNote(ctx.db, ctx.user.workspaceId, text);
     await ctx.reply(ctx.t('voice_saved', { text }));
 
     const tasks = await getOpenTasksForPicker(ctx.db, ctx.user.workspaceId);
