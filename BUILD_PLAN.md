@@ -22,21 +22,27 @@
 
 ```
 Дата последней сессии: 2026-05-26
-Выполнено до шага:      8.6 (весь Этап 8 закрыт)
-Следующий шаг:          9.9 (личный кабинет — web), 9.13 (Supabase платный план — ручное), 9.16 (Gemini)
-Блокеры:                STRIPE_SECRET_KEY, STRIPE_PRICE_SOLO, STRIPE_PRICE_TEAM, STRIPE_WEBHOOK_SECRET нужны в Supabase Secrets.
-                        ADMIN_SECRET нужен для admin-stats.
-                        billing-housekeeping нужно настроить по расписанию в Supabase Dashboard.
-                        CONSENT_GATE_ENABLED=true включить перед публичным запуском.
-Блокеры:                GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET нужно добавить в Supabase Secrets.
-                        RESEND_API_KEY и EMAIL_FROM_ADDRESS нужно добавить в Supabase Secrets.
-Заметки:                OpenAI ключ временный — заменить на постоянный.
-                        Функция задеплоена с --no-verify-jwt (стандарт для вебхука).
-                        calendar-webhook задеплоен — добавить в Google Cloud Console как авторизованный домен.
-                        remind-cron: pg_cron не включён — настроить вручную через Supabase Dashboard > Cron.
-                        Модуль tasks: /task, /tasks, /filter, /today, смена статусов.
-                        /today показывает просроченные (⚠️) и дедлайн сегодня (📅).
-                        /filter выдаёт кнопки тем, фильтрует задачи по теме.
+Выполнено до шага:      9.15 (весь Этап 9 закрыт кроме 9.9, 9.11, 9.13, 9.16)
+Последний коммит:       ca629f0 feat: in-bot config management + AdminModule
+Следующий шаг:          9.9 (личный кабинет — web frontend)
+Задеплоено:             bot, stripe-webhook, calendar-webhook, google-auth,
+                        admin-stats, billing-housekeeping, remind
+                        Миграция 000007 применена (app_settings, is_platform_admin)
+
+Ручные действия (ещё не сделаны):
+  - billing-housekeeping: настроить расписание в Supabase Dashboard (раз в сутки)
+  - remind: настроить cron в Supabase Dashboard (каждую минуту)
+  - Env vars: STRIPE_WEBHOOK_SECRET, ADMIN_SECRET, ADMIN_TELEGRAM_ID
+  - CONSENT_GATE_ENABLED=true включить перед публичным запуском
+
+Как настроить API-ключи теперь:
+  Все ключи (GOOGLE_CLIENT_ID/SECRET, RESEND_API_KEY, OPENAI_API_KEY,
+  STRIPE_SECRET_KEY и т.д.) задаются через бота командой /setconfig KEY VALUE
+  после того как первый пользователь зарегистрируется (он автоматически
+  получит права platform admin).
+  Env vars нужны только: TELEGRAM_BOT_TOKEN, SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY, STRIPE_WEBHOOK_SECRET, ADMIN_SECRET,
+  ADMIN_TELEGRAM_ID.
 ```
 
 ---
