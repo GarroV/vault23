@@ -52,3 +52,56 @@ AI-бот в Telegram для ведения задач. Мультитенант
 ## Стиль
 - Код и тексты — единообразно по `CONVENTIONS.md`.
 - Безопасность важнее скорости. При сомнении — спросить, а не угадать.
+
+---
+
+## Рабочий процесс с Claude Code
+
+### Перед изменением кода
+1. **Прочитай `MASTER_PROJECT.md`** — полный контекст проекта. Текущая точка разработки — в `BUILD_PLAN.md` (раздел «ТЕКУЩАЯ ТОЧКА»). Модель данных — `DATA_MODEL.md`, контракт модуля — `MODULE_CONTRACT.md`, конвенции кода — `CONVENTIONS.md`.
+2. **Перед коммитом — `deno check` затронутых функций.** Красный type-check не коммитим и не пушим:
+   `deno check supabase/functions/<name>/index.ts`
+   Перед коммитом также прогнать `deno fmt` и `deno lint` (см. `CONVENTIONS.md` → «Стиль кода»).
+3. **После изменения — сразу обнови затронутые доки** (`MASTER_PROJECT.md` / `BUILD_PLAN.md` / `DATA_MODEL.md` / `docs/BOT_REFERENCE.md`). Если флоу, таблица, команда или структура изменились, а док — нет, это незавершённая задача.
+
+### Ветки и коммиты
+- **Никогда не коммитить напрямую в `main`.** Любое изменение — через фича-ветку → PR в `main`. (Отдельной dev-ветки в репо пока нет.)
+  `git checkout -b feat/<задача>` → работа → PR.
+- **Conventional commits строго:** `feat / fix / refactor / docs / test / chore / perf / ci`. Описание — по сути, понятное. Commit-сообщения = источник истории и changelog, поэтому без мусорных «wip», «fix2».
+- **После каждого логически завершённого изменения — сразу коммит + пуш**, не накапливать. Коммит = одно завершённое изменение. Сразу `git push origin <ветка>`.
+
+### Деплой (Supabase Edge Functions)
+- Деплой функции: `supabase functions deploy <name>`.
+- **Webhook-функцию `bot` деплоить с `--no-verify-jwt`** — Telegram не шлёт JWT, иначе получит 401:
+  `supabase functions deploy bot --no-verify-jwt`
+  (В `supabase/config.toml` блока `verify_jwt = false` нет — флаг при деплое обязателен для `bot` и любой другой публично дёргаемой извне функции: вебхуки `stripe-webhook`, `calendar-webhook`.)
+- **Деплоить сразу после изменения** функции, не оставлять «на потом».
+- Миграции БД — только через CLI: `supabase migration new <name>` → правка → `supabase db push`. Подробно — `CONVENTIONS.md` → «Миграции».
+- Лендинг (`landing/`) — статика, деплоится отдельно.
+
+### Безопасность
+- **Секреты — НИКОГДА в коде.** Только env / Supabase secrets. `.env`, `supabase/.env` — в `.gitignore`, не коммитить. Бутстрап-ключи (`TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL`) запрещено хранить в БД (`app_settings`) — см. `FORBIDDEN_KEYS` в `supabase/functions/bot/core/config.ts`. Конфигурируемые через `/setconfig` ключи — в `CONFIGURABLE_KEYS` там же.
+- **Валидация на границах.** Весь ввод (Telegram-апдейты, тела вебхуков, query-параметры) проверять до обработки. Не доверять внешним данным.
+- **Изоляция тенантов — два слоя:** RLS-политики на каждой содержательной таблице (`workspace_id`) + проверки в коде. Бот ходит через `SERVICE_ROLE` (RLS не ограничивает service-role), поэтому `workspace_id` всегда брать из `ctx.user.workspaceId`, никогда не хардкодить и не обходить фильтр.
+- **БД-операции:** `ADD COLUMN` — безопасно (с дефолтом для существующих строк, если `NOT NULL`). `DROP COLUMN` / `RENAME COLUMN` / `ALTER TYPE` — только в два шага: сначала убрать из кода → деплой → потом менять схему. Никогда `DELETE` / `UPDATE` без `WHERE`. Не удалять колонки/таблицы с данными без бэкапа (`docs/BACKUP_PLAN.md`).
+
+## Карта репозитория
+```
+/                              — документация-источники правды (MASTER_PROJECT, BUILD_PLAN, DATA_MODEL,
+                                  MODULE_CONTRACT, CONVENTIONS, BACKLOG, DEV_PLAN, BILLING_AND_ACCESS_DESIGN)
+/supabase/functions/bot/       — главная функция: webhook-роутер Telegram
+  ├── index.ts                 — точка входа (приём апдейтов, identify, маршрутизация)
+  ├── core/                    — ядро: router, registry, i18n, session, gate, nlp, config, usage, jwt …
+  │   └── locales/{ru,en}.ts   — i18n ядра
+  └── modules/<name>/          — модули (tasks, notes, items, reminders, kb, billing, google, email, admin …)
+                                  по контракту MODULE_CONTRACT.md: index.ts + handlers.ts + queries.ts + locales/
+/supabase/functions/*/         — остальные функции: cabinet-api, web-auth, google-auth,
+                                  stripe-webhook, calendar-webhook, remind, admin-stats, billing-housekeeping
+/supabase/migrations/          — версионированные миграции БД (supabase CLI)
+/supabase/config.toml          — конфиг Supabase CLI
+/landing/                      — статический лендинг + cabinet / help / pricelist
+/docs/                         — доп. документация (BOT_REFERENCE, BACKUP_PLAN, UNIT_ECONOMICS, Gemini-промты)
+/decisions/                    — журнал архитектурных решений
+/assets/                       — медиа (аватар бота)
+```
+Замечание по стеку: «голый» Deno без `deno.json`/`package.json` — зависимости через прямые `https://esm.sh/...` импорты в коде.
