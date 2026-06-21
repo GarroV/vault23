@@ -93,7 +93,7 @@ AI-бот в Telegram для ведения задач. Мультитенант
   ├── index.ts                 — точка входа (приём апдейтов, identify, маршрутизация)
   ├── core/                    — ядро: router, registry, i18n, session, gate, nlp, config, usage, jwt …
   │   └── locales/{ru,en}.ts   — i18n ядра
-  └── modules/<name>/          — модули (tasks, notes, items, reminders, kb, billing, google, email, admin …)
+  └── modules/<name>/          — модули (items, attachments, contractors, kb, billing, google, email, admin …)
                                   по контракту MODULE_CONTRACT.md: index.ts + handlers.ts + queries.ts + locales/
 /supabase/functions/*/         — остальные функции: cabinet-api, web-auth, google-auth,
                                   stripe-webhook, calendar-webhook, remind, admin-stats, billing-housekeeping
